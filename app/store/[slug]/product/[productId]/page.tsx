@@ -8,31 +8,20 @@ interface Props {
 }
 
 async function getSiteName() {
-  const siteNameSetting = await queryOne<any>(
-    "SELECT setting_value FROM global_settings WHERE setting_key = 'site_name'"
-  )
-  return siteNameSetting?.setting_value || 'Storify'
+  // Site name could also be moved to a public config endpoint in Laravel
+  return 'Storify'
 }
 
 async function getProductData(productId: string) {
-  const product = await queryOne<any>(
-    `SELECT p.*, s.name as store_name, s.name_ar as store_name_ar, s.logo_url as store_logo
-     FROM products p
-     JOIN stores s ON p.store_id = s.id
-     WHERE p.id = ? AND p.deleted_at IS NULL`,
-    [productId]
-  )
-
-  if (!product) return null
-
-  const media = await queryOne<any>(
-    "SELECT url FROM media WHERE product_id = ? AND type = 'image' AND deleted_at IS NULL LIMIT 1",
-    [productId]
-  )
-
-  return {
-    ...product,
-    imageUrl: media?.url || product.store_logo
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/v1/public/product/${productId}`, {
+      next: { revalidate: 3600 }
+    })
+    if (!res.ok) return null
+    const json = await res.json()
+    return json.success ? json.data : null
+  } catch (e) {
+    return null
   }
 }
 
@@ -45,8 +34,8 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 
   if (!product) return { title: 'Product Not Found' }
 
-  const title = `${product.title_ar || product.title} | ${product.store_name_ar || product.store_name}`
-  const description = product.description_ar || product.description || `Buy ${product.title} from ${product.store_name}`
+  const title = `${product.titleAr || product.title} | ${product.store.nameAr || product.store.name}`
+  const description = product.descriptionAr || product.description || `Buy ${product.title} from ${product.store.name}`
   const url = `${process.env.NEXT_PUBLIC_APP_URL || ''}/store/${params.slug}/product/${params.productId}`
 
   return {

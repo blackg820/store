@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: storify-frontend
+  namespace: storify-prod
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: storify-frontend
+  template:
+    metadata:
+      labels:
+        app: storify-frontend
+    spec:
+      containers:
+      - name: nextjs
+        image: storify/frontend:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: NEXT_PUBLIC_API_URL
+          value: "http://storify-backend-service"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: storify-frontend-service
+  namespace: storify-prod
+spec:
+  selector:
+    app: storify-frontend
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 3000

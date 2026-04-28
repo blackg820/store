@@ -1,0 +1,49 @@
+name: Storify Enterprise CI/CD
+
+on:
+  push:
+    branches: [ main, production ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.3'
+        
+    - name: Install Dependencies (Backend)
+      run: composer install --no-progress --no-suggest --prefer-dist
+      working-directory: ./backend
+      
+    - name: Run Tests (Backend)
+      run: php artisan test
+      working-directory: ./backend
+
+    - name: Build and Push Docker Images
+      run: |
+        docker build -t storify/backend:${{ github.sha }} ./backend
+        docker build -t storify/frontend:${{ github.sha }} .
+        # docker push ... (requires login)
+
+  deploy-to-k8s:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/production'
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Kubectl
+      uses: azure/k8s-set-context@v3
+      with:
+        method: kubeconfig
+        kubeconfig: ${{ secrets.KUBE_CONFIG }}
+        
+    - name: Deploy to Kubernetes
+      run: |
+        kubectl set image deployment/storify-backend php-fpm=storify/backend:${{ github.sha }} -n storify-prod
+        kubectl set image deployment/storify-frontend nextjs=storify/frontend:${{ github.sha }} -n storify-prod
+        kubectl rollout status deployment/storify-backend -n storify-prod

@@ -8,7 +8,7 @@ module.exports = {
       // args: 'start', // Not needed for standalone
       env: {
         NODE_ENV: 'production',
-        PORT: 3001,
+        PORT: 3002,
         BUNNY_STORAGE_ZONE: process.env.BUNNY_STORAGE_ZONE,
         BUNNY_API_KEY: process.env.BUNNY_API_KEY,
         BUNNY_PULL_ZONE: process.env.BUNNY_PULL_ZONE,

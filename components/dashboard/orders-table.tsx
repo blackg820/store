@@ -100,6 +100,8 @@ export function OrdersTable({ storeId, limit, showActions = true }: OrdersTableP
   const [editDistrict, setEditDistrict] = useState('')
   const [editTotalAmount, setEditTotalAmount] = useState(0)
   const [editDeliveryFee, setEditDeliveryFee] = useState(0)
+  const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable')
+  const [dateRange, setDateRange] = useState<'all' | 'today' | 'week' | 'month'>('all')
 
   let filteredOrders = storeId 
     ? orders.filter(o => o.storeId === storeId)
@@ -107,6 +109,17 @@ export function OrdersTable({ storeId, limit, showActions = true }: OrdersTableP
 
   if (statusFilter !== 'all') {
     filteredOrders = filteredOrders.filter(o => o.status === statusFilter)
+  }
+
+  if (dateRange !== 'all') {
+    const now = new Date()
+    filteredOrders = filteredOrders.filter(o => {
+      const orderDate = new Date(o.createdAt)
+      if (dateRange === 'today') return orderDate.toDateString() === now.toDateString()
+      if (dateRange === 'week') return now.getTime() - orderDate.getTime() < 7 * 24 * 60 * 60 * 1000
+      if (dateRange === 'month') return now.getTime() - orderDate.getTime() < 30 * 24 * 60 * 60 * 1000
+      return true
+    })
   }
 
   if (searchQuery) {
@@ -327,8 +340,37 @@ export function OrdersTable({ storeId, limit, showActions = true }: OrdersTableP
                 <SelectItem value="problematic">{t('problematic')}</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={dateRange} onValueChange={(v) => setDateRange(v as any)}>
+              <SelectTrigger className="w-full sm:w-44 bg-white/5 border-white/10 rounded-xl h-11">
+                <SelectValue placeholder="Time Range" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Time</SelectItem>
+                <SelectItem value="today">Today</SelectItem>
+                <SelectItem value="week">This Week</SelectItem>
+                <SelectItem value="month">This Month</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="flex flex-wrap gap-2 w-full lg:w-auto">
+            <div className="flex items-center bg-white/5 border border-white/10 rounded-xl p-1 me-2">
+              <Button 
+                variant={density === 'comfortable' ? 'secondary' : 'ghost'} 
+                size="sm" 
+                onClick={() => setDensity('comfortable')}
+                className="rounded-lg h-9 px-3"
+              >
+                Comfortable
+              </Button>
+              <Button 
+                variant={density === 'compact' ? 'secondary' : 'ghost'} 
+                size="sm" 
+                onClick={() => setDensity('compact')}
+                className="rounded-lg h-9 px-3"
+              >
+                Compact
+              </Button>
+            </div>
             <Button variant="outline" size="sm" onClick={exportToCSV} className="bg-white/5 border-white/10 hover:bg-white/10 rounded-xl h-11 px-6">
               <Download className="h-4 w-4 me-2" />
               {t('export')}
@@ -341,19 +383,19 @@ export function OrdersTable({ storeId, limit, showActions = true }: OrdersTableP
         </div>
       )}
 
-      <div className="rounded-2xl glass-card border-white/10 overflow-hidden shadow-xl">
-        <div className="overflow-x-auto">
-          <Table>
-          <TableHeader>
-            <TableRow className="bg-white/5 border-b border-white/10 hover:bg-white/5">
-              <TableHead className="text-muted-foreground font-bold uppercase text-xs tracking-widest py-5">Order ID</TableHead>
-              <TableHead className="text-muted-foreground font-bold uppercase text-xs tracking-widest">{t('products')}</TableHead>
-              <TableHead className="text-muted-foreground font-bold uppercase text-xs tracking-widest">Buyer</TableHead>
-              <TableHead className="text-muted-foreground font-bold uppercase text-xs tracking-widest text-center">{t('quantity')}</TableHead>
-              <TableHead className="text-muted-foreground font-bold uppercase text-xs tracking-widest">{t('total')}</TableHead>
-              <TableHead className="text-muted-foreground font-bold uppercase text-xs tracking-widest">{t('status')}</TableHead>
-              <TableHead className="text-muted-foreground font-bold uppercase text-xs tracking-widest">{t('date')}</TableHead>
-              {showActions && <TableHead className="text-muted-foreground font-bold uppercase text-xs tracking-widest text-end">{t('actions')}</TableHead>}
+      <div className="rounded-2xl glass-card border-white/10 overflow-hidden shadow-xl relative">
+        <div className="overflow-x-auto max-h-[70vh] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10">
+          <Table className="relative">
+          <TableHeader className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-white/10 shadow-sm">
+            <TableRow className="hover:bg-transparent border-none">
+              <TableHead className="text-muted-foreground font-bold uppercase text-[10px] tracking-widest py-4 ps-6">Order ID</TableHead>
+              <TableHead className="text-muted-foreground font-bold uppercase text-[10px] tracking-widest">{t('products')}</TableHead>
+              <TableHead className="text-muted-foreground font-bold uppercase text-[10px] tracking-widest">Buyer</TableHead>
+              <TableHead className="text-muted-foreground font-bold uppercase text-[10px] tracking-widest text-center">{t('quantity')}</TableHead>
+              <TableHead className="text-muted-foreground font-bold uppercase text-[10px] tracking-widest">{t('total')}</TableHead>
+              <TableHead className="text-muted-foreground font-bold uppercase text-[10px] tracking-widest">{t('status')}</TableHead>
+              <TableHead className="text-muted-foreground font-bold uppercase text-[10px] tracking-widest">{t('date')}</TableHead>
+              {showActions && <TableHead className="text-muted-foreground font-bold uppercase text-[10px] tracking-widest text-end pe-6">{t('actions')}</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -384,11 +426,14 @@ export function OrdersTable({ storeId, limit, showActions = true }: OrdersTableP
 
                 return (
                   <TableRow key={order.id} className={cn(
-                    'transition-colors hover:bg-white/5 border-b border-white/5 last:border-0',
-                    isHighRisk && 'bg-destructive/5'
-                  )}>
-                    <TableCell className="font-mono text-sm">{order.id.slice(0, 8)}...</TableCell>
-                    <TableCell>
+                    'transition-colors hover:bg-white/5 border-b border-white/5 last:border-0 cursor-pointer',
+                    isHighRisk && 'bg-destructive/5',
+                    density === 'compact' ? 'h-12' : 'h-20'
+                  )} onClick={() => handleView(order)}>
+                    <TableCell className={cn("font-mono text-sm ps-6", density === 'compact' ? "py-2" : "py-4")}>
+                      {order.id.slice(0, 8)}...
+                    </TableCell>
+                    <TableCell className={density === 'compact' ? "py-2" : "py-4"}>
                       <div className="flex flex-col">
                         <span className="font-medium">
                           {order.items[0]?.product?.title || 'Unknown Product'}

@@ -15,36 +15,56 @@ export default function DashboardPage() {
   const isAdmin = user?.role === 'admin'
 
   return (
-    <div className="min-h-screen">
-      <DashboardHeader title={t('dashboard')} />
+    <div className="space-y-8 max-w-[1600px] mx-auto">
+      {/* Dynamic Page Header Section */}
+      <div className="flex flex-col gap-2">
+        <h2 className="text-3xl font-black tracking-tight text-foreground">
+          {t('dashboard')}
+        </h2>
+        <p className="text-muted-foreground text-sm font-medium">
+          Welcome back, <span className="text-primary font-bold">{user?.name}</span>. Here's what's happening with your stores today.
+        </p>
+      </div>
       
-      <div className="p-4 md:p-6 space-y-6">
-        {/* Stats Cards */}
+      {/* Stats Cards Section */}
+      <section className="animate-in fade-in slide-in-from-top-4 duration-500 delay-150">
         {isAdmin ? (
           <AdminStatsCards />
         ) : (
           <StoreOwnerStatsCards userId={user?.id || ''} />
         )}
+      </section>
 
-        {/* Main Content Grid */}
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Recent Orders - Takes 2 columns */}
-          <div className="lg:col-span-2">
-            <Card className="glass-card border-white/10 shadow-xl overflow-hidden">
-              <CardHeader className="border-b border-white/5 bg-white/5">
-                <CardTitle className="text-lg font-bold tracking-tight">{t('recentOrders')}</CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <OrdersTable limit={5} showActions={false} />
-              </CardContent>
-            </Card>
+      {/* Main Content Grid */}
+      <div className="grid gap-8 lg:grid-cols-3 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
+        {/* Recent Orders - Takes 2 columns */}
+        <div className="lg:col-span-2 space-y-4">
+          <div className="flex items-center justify-between px-2">
+            <h3 className="text-xl font-bold tracking-tight">{t('recentOrders')}</h3>
+            <button className="text-xs font-bold text-primary hover:underline transition-all">
+              View All Orders
+            </button>
           </div>
+          {/* Note: OrdersTable already has its own card styling and actions, 
+              so we don't need to wrap it in a redundant UI Card if it's top-level. */}
+          <OrdersTable limit={5} showActions={false} />
+        </div>
 
-          {/* Sidebar Content */}
-          <div className="space-y-6">
-            <RecentActivity />
-            {isAdmin && <TopStores />}
+        {/* Sidebar Activity Section */}
+        <div className="space-y-8">
+          <div className="space-y-4">
+             <div className="flex items-center gap-2 px-2">
+                <span className="h-2 w-2 rounded-full bg-success animate-pulse" />
+                <h3 className="text-lg font-bold tracking-tight">Live Activity</h3>
+             </div>
+             <RecentActivity />
           </div>
+          {isAdmin && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold tracking-tight px-2">Top Performance</h3>
+              <TopStores />
+            </div>
+          )}
         </div>
       </div>
     </div>

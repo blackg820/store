@@ -29,34 +29,41 @@ function StatCard({ title, value, icon: Icon, trend, variant = 'default' }: Stat
 
   return (
     <Card className={cn(
-      "relative overflow-hidden group transition-all duration-500 glass-card border-white/10 hover:border-white/30 hover:scale-[1.03] hover:shadow-2xl",
+      "relative overflow-hidden group transition-all duration-500 glass-card border-white/5 hover:border-white/20 hover:scale-[1.02] hover:shadow-2xl",
     )}>
+      {/* Dynamic Background Glow */}
       <div className={cn(
-        "absolute -right-4 -top-4 h-24 w-24 rounded-full blur-3xl opacity-20 transition-opacity group-hover:opacity-40 bg-gradient-to-br",
+        "absolute -right-8 -top-8 h-32 w-32 rounded-full blur-3xl opacity-10 transition-opacity group-hover:opacity-30 bg-gradient-to-br",
         variantStyles[variant]
       )} />
       
-      <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-        <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{title}</CardTitle>
-        <div className={cn('p-2.5 rounded-2xl transition-all duration-500 group-hover:rotate-12 group-hover:shadow-lg', variantStyles[variant], "bg-white/5")}>
-          <Icon className="h-5 w-5" />
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="text-3xl font-black tracking-tight mb-1">{value}</div>
-        {trend && (
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between mb-4">
           <div className={cn(
-            'text-xs font-bold flex items-center gap-1.5 px-2 py-1 rounded-full w-fit',
-            trend.isPositive ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'
+            'p-2.5 rounded-xl transition-all duration-500 group-hover:scale-110 shadow-sm border border-white/5', 
+            variantStyles[variant], 
+            "bg-white/5"
           )}>
-            {trend.isPositive ? (
-              <TrendingUp className="h-3.5 w-3.5" />
-            ) : (
-              <TrendingDown className="h-3.5 w-3.5" />
-            )}
-            <span>{trend.value}%</span>
+            <Icon className="h-5 w-5" />
           </div>
-        )}
+          {trend && (
+            <div className={cn(
+              'text-[10px] font-black flex items-center gap-1 px-2 py-0.5 rounded-full uppercase tracking-tighter border border-white/5',
+              trend.isPositive ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'
+            )}>
+              {trend.isPositive ? '+' : '-'}{trend.value}%
+            </div>
+          )}
+        </div>
+        
+        <div className="space-y-1">
+          <p className="text-xs font-black text-muted-foreground uppercase tracking-widest opacity-70">
+            {title}
+          </p>
+          <div className="text-3xl font-black tracking-tighter text-foreground">
+            {value}
+          </div>
+        </div>
       </CardContent>
     </Card>
   )

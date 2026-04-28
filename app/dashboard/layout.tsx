@@ -5,13 +5,14 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { DashboardProvider, useDashboard } from '@/lib/dashboard-context'
 import { DashboardSidebar } from '@/components/dashboard/sidebar'
+import { ShellTopbar } from '@/components/dashboard/shell-topbar'
 import { Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const { user, isLoading } = useAuth()
-  const { isSidebarCollapsed, isMobileMenuOpen } = useDashboard()
+  const { isSidebarCollapsed } = useDashboard()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -37,18 +38,24 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-background dashboard-bg transition-colors duration-500">
+    <div className="min-h-screen bg-background transition-colors duration-500 flex">
+      {/* Fixed Sidebar */}
       <DashboardSidebar />
-      <main 
+      
+      {/* Main Content Flow */}
+      <div 
         className={cn(
-          "transition-all duration-300 min-h-screen overflow-x-hidden",
-          isSidebarCollapsed ? "md:ms-20" : "md:ms-72"
+          "flex-1 flex flex-col min-h-screen transition-all duration-300",
+          isSidebarCollapsed ? "md:ps-20" : "md:ps-72"
         )}
       >
-        <div className="p-4 md:p-8">
-          {children}
-        </div>
-      </main>
+        <ShellTopbar />
+        <main className="flex-1 p-4 md:p-8 max-w-[1600px] mx-auto w-full">
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+            {children}
+          </div>
+        </main>
+      </div>
     </div>
   )
 }

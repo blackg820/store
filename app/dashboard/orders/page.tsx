@@ -33,70 +33,44 @@ export default function OrdersPage() {
   }
 
   return (
-    <div className="min-h-screen">
-      <DashboardHeader title={t('orders')} />
-      
-      <div className="p-4 md:p-6 space-y-6">
-        {/* Status Summary */}
-        <div className="grid gap-4 sm:grid-cols-5">
-          <Card>
-            <CardContent className="p-4 flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">{t('pending')}</p>
-                <p className="text-2xl font-bold">{stats.pending}</p>
-              </div>
-              <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20">
-                {t('pending')}
-              </Badge>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">{t('confirmed')}</p>
-                <p className="text-2xl font-bold">{stats.confirmed}</p>
-              </div>
-              <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
-                {t('confirmed')}
-              </Badge>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">{t('delivered')}</p>
-                <p className="text-2xl font-bold">{stats.delivered}</p>
-              </div>
-              <Badge variant="outline" className="bg-success/10 text-success border-success/20">
-                {t('delivered')}
-              </Badge>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">{t('returned')}</p>
-                <p className="text-2xl font-bold">{stats.returned}</p>
-              </div>
-              <Badge variant="secondary">
-                {t('returned')}
-              </Badge>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">{t('problematic')}</p>
-                <p className="text-2xl font-bold">{stats.problematic}</p>
-              </div>
-              <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20">
-                {t('problematic')}
-              </Badge>
-            </CardContent>
-          </Card>
-        </div>
+    <div className="space-y-8 max-w-[1600px] mx-auto">
+      <div className="flex flex-col gap-2">
+        <h2 className="text-3xl font-black tracking-tight text-foreground">
+          {t('orders')}
+        </h2>
+        <p className="text-muted-foreground text-sm font-medium">
+          Track fulfillment, handle returns, and monitor high-risk deliveries.
+        </p>
+      </div>
 
-        {/* Orders Table */}
+      {/* Status Summary Section */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 animate-in fade-in slide-in-from-top-4 duration-500">
+        {[
+          { key: 'pending', count: stats.pending, color: 'warning' },
+          { key: 'confirmed', count: stats.confirmed, color: 'primary' },
+          { key: 'delivered', count: stats.delivered, color: 'success' },
+          { key: 'returned', count: stats.returned, color: 'muted' },
+          { key: 'problematic', count: stats.problematic, color: 'danger' },
+        ].map((stat) => (
+          <div key={stat.key} className="glass-card border-white/5 p-4 rounded-2xl flex flex-col gap-2 group hover:scale-105 transition-all duration-300">
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-70">{t(stat.key as any)}</span>
+            <div className="flex items-center justify-between">
+              <span className="text-2xl font-black tracking-tighter">{stat.count}</span>
+              <div className={cn(
+                "h-2 w-2 rounded-full",
+                stat.color === 'warning' && "bg-warning",
+                stat.color === 'primary' && "bg-primary",
+                stat.color === 'success' && "bg-success",
+                stat.color === 'muted' && "bg-muted-foreground",
+                stat.color === 'danger' && "bg-destructive",
+              )} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Orders Table */}
+      <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
         <OrdersTable />
       </div>
     </div>

@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: storify-backend
+  namespace: storify-prod
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: storify-backend
+  template:
+    metadata:
+      labels:
+        app: storify-backend
+    spec:
+      containers:
+      - name: php-fpm
+        image: storify/backend:latest
+        ports:
+        - containerPort: 9000
+        envFrom:
+        - secretRef:
+            name: storify-env
+      - name: nginx
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/conf.d
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: backend-nginx-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: storify-backend-service
+  namespace: storify-prod
+spec:
+  selector:
+    app: storify-backend
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80

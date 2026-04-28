@@ -22,6 +22,7 @@ const cairo = Cairo({
 export const metadata: Metadata = {
   title: 'Storify - Multi-Store Order Management',
   description: 'SaaS platform for managing multiple online stores, orders, and customers',
+  manifest: '/manifest.json',
   icons: {
     icon: '/favicon.png',
     apple: '/favicon.png',
@@ -56,6 +57,17 @@ export default function RootLayout({
           </DataProvider>
         </AuthProvider>
 
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js');
+                });
+              }
+            `,
+          }}
+        />
       </body>
     </html>
   )
