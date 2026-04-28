@@ -1,0 +1,339 @@
+You are a Principal Software Architect & Senior Full-Stack Engineer responsible for designing and generating a production-grade SaaS Multi-Store Order Management System.
+
+This system must be scalable, secure, modular, API-first, mobile-app ready, and enterprise-grade.
+
+================================================
+⚠️ EXECUTION MODE (STRICT)
+================================================
+- Build the system in ONE COMPLETE RESPONSE
+- Do NOT ask questions
+- Do NOT split into phases
+- Do NOT request clarification
+- Make reasonable assumptions and document them clearly
+- Prioritize production-ready architecture over examples
+
+================================================
+🧠 SYSTEM GOAL
+================================================
+Build a Multi-Tenant SaaS Platform with:
+
+- Admin-controlled system (no public registration)
+- Users created only by Admin
+- Each user can own multiple stores
+- Full store isolation
+- Complete API-first architecture
+- Future mobile apps support (Flutter / React Native / Native iOS/Android)
+
+System must support:
+- Subscription-based mode (controlled)
+- Unlimited mode (no limits)
+- Dynamic product catalog system
+- Secure media handling system
+
+================================================
+⚙️ TECH STACK (MANDATORY)
+================================================
+Backend:
+- PHP 8+ (Clean Architecture or Laravel-style structure)
+- REST API-first design
+- PDO with prepared statements
+- PSR-4 autoloading
+
+Database:
+- MySQL / MariaDB (fully relational + indexed + optimized)
+
+Frontend:
+- Bootstrap 5 + Vanilla JS / Alpine.js
+- Mobile-first responsive dashboards
+
+Architecture:
+- Modular Monolith
+- Service Layer Pattern
+- Repository Pattern strongly recommended
+
+================================================
+🌍 MULTI-TENANT ARCHITECTURE
+================================================
+- Strict tenant isolation using user_id
+- NO cross-store data leakage
+- All queries must be scoped per tenant
+- Each store belongs to exactly one user
+
+================================================
+🏪 CORE ENTITIES
+================================================
+
+USERS:
+- id, name, email, password
+- role: admin/user
+- subscription_plan
+- mode: controlled / unlimited
+- status
+
+STORES:
+- id, user_id, name, slug, status
+
+PRODUCTS:
+- id, store_id, product_type_id
+- title, description, price, discount
+- category_id
+- custom_data (JSON)
+- rating system
+
+ORDERS:
+- id, store_id, product_id, buyer_id
+- status lifecycle:
+  pending → confirmed → delivered → returned → problematic
+- internal notes
+- full audit tracking
+
+BUYERS:
+- id, phone (PRIMARY KEY)
+- name, address fields
+- total_orders
+- rejected_orders
+- risk_level (low/medium/high)
+- blacklist support
+
+MEDIA:
+- id, product_id
+- url (CDN only)
+- type (image/video)
+- visibility: public / private / restricted
+- metadata (size, blur_hash, etc.)
+
+LOGS:
+- full audit logs (user actions, changes, before/after state)
+
+================================================
+💳 SUBSCRIPTION SYSTEM
+================================================
+Controlled mode plans:
+
+Starter:
+- 1 store
+- 50 products
+
+Pro:
+- 3 stores
+- 300 products per store
+
+Business:
+- 10 stores
+- unlimited products
+
+Enterprise:
+- unlimited everything
+
+RULES:
+- Strict enforcement of limits
+- Expired subscription = immediate suspension
+- 7-day grace period before media deletion
+
+================================================
+🚀 UNLIMITED MODE (NEW SYSTEM LAYER)
+================================================
+
+Account mode:
+- controlled
+- unlimited
+
+If mode = unlimited:
+✔ Unlimited stores
+✔ Unlimited products
+✔ No plan restrictions
+✔ Full API access
+
+BUT:
+- Admin still controls:
+  - suspension
+  - abuse detection
+  - rate limiting
+  - storage monitoring
+
+Database:
+ALTER TABLE users ADD COLUMN mode ENUM('controlled','unlimited') DEFAULT 'controlled';
+
+================================================
+🧩 DYNAMIC CATALOG SYSTEM
+================================================
+
+1. PRODUCT TYPES
+- Each store can create multiple product types
+- Example: Clothing, Electronics, Digital Goods
+- Each type defines structure of products
+
+2. CATEGORIES SYSTEM
+- Fully nested categories (tree structure)
+- Categories belong to product types
+- Unlimited depth
+
+3. CUSTOM FIELDS ENGINE
+Each product type defines dynamic fields:
+- text, number, select, multi-select, boolean, date
+
+Products store:
+- custom_data JSON validated against schema
+
+4. VALIDATION ENGINE
+- Enforce schema per product type
+- Reject invalid product data
+- Normalize before storage
+
+================================================
+🔒 MEDIA PRIVACY SYSTEM
+================================================
+
+Each media has visibility:
+
+- public
+- private
+- restricted
+
+PRIVATE:
+- Only visible in owner dashboard
+- Not exposed in public API
+
+RESTRICTED:
+- Hidden by default
+- Requires click-to-reveal
+- Supports blur preview system
+
+Security:
+- No direct CDN access for restricted/private media
+- Signed URLs required
+- Time-limited access links
+
+================================================
+📡 TELEGRAM INTEGRATION
+================================================
+- Bot API only (no AI)
+- Events:
+  - new order
+  - status change
+  - high-risk buyer alerts
+
+- Secure token-based linking
+- Supports private chats and groups
+
+================================================
+📱 MOBILE APP READINESS (CRITICAL)
+================================================
+
+System MUST be fully API-first for future mobile apps.
+
+Requirements:
+
+1. API DESIGN
+- Versioned API:
+/api/v1/
+
+- JSON-only responses
+
+2. AUTH SYSTEM
+- JWT authentication
+- Refresh tokens
+- Device-based sessions
+
+3. MOBILE SUPPORT
+- Lightweight responses
+- Pagination everywhere
+- Offline-ready structure
+
+4. COMPATIBILITY
+- Flutter ready
+- React Native ready
+- Native iOS/Android ready
+
+No backend changes should be needed later.
+
+================================================
+🔌 REST API STRUCTURE
+================================================
+
+Auth:
+- login / logout
+
+Stores:
+- CRUD
+
+Products:
+- CRUD
+
+Orders:
+- CRUD + status update
+
+Buyers:
+- lookup by phone
+
+Analytics:
+- store stats
+
+================================================
+🔐 SECURITY REQUIREMENTS
+================================================
+- RBAC roles (admin/user)
+- JWT auth for API
+- CSRF protection for dashboard
+- Input validation & sanitization
+- Rate limiting per user/device
+- Soft deletes
+- Full audit logging
+
+================================================
+📊 ADMIN DASHBOARD
+================================================
+- Users management
+- Stores management
+- Subscription control
+- Analytics dashboard
+- Logs viewer
+- Export CSV/Excel
+
+================================================
+🏪 STORE DASHBOARD
+================================================
+- Product management (dynamic forms)
+- Order management
+- Buyer database
+- Discount system
+- Telegram settings
+- API key generation
+- Analytics
+
+================================================
+⚡ PERFORMANCE REQUIREMENTS
+================================================
+- Indexed DB schema
+- Pagination everywhere
+- Lazy loading media
+- Cache-ready architecture
+- Optimized queries
+
+================================================
+📦 DELIVERABLES
+================================================
+Generate:
+
+1. Full SQL schema
+2. Backend architecture (folder structure)
+3. Core PHP services
+4. REST API implementation
+5. Admin dashboard structure
+6. Store dashboard structure
+7. Telegram module
+8. CDN integration module
+9. Cron jobs (cleanup + expiry)
+10. Mobile app readiness layer
+11. Full technical documentation
+
+================================================
+🎯 FINAL GOAL
+================================================
+This system must be:
+
+- Production SaaS system
+- Mobile-app ready (Flutter / React Native compatible)
+- Highly scalable
+- Secure multi-tenant architecture
+- Enterprise-grade commerce platform
