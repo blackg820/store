@@ -97,10 +97,8 @@ export const mockStores: Store[] = [
     id: 'store-1',
     userId: 'user-1',
     name: 'Tech Galaxy',
-    nameAr: 'تك جالاكسي',
     slug: 'tech-galaxy',
     description: 'Your one-stop shop for electronics and gadgets',
-    descriptionAr: 'متجرك الشامل للإلكترونيات والأجهزة',
     isActive: true,
     createdAt: '2024-02-16T00:00:00Z',
     telegramUserId: '123456789',
@@ -111,10 +109,8 @@ export const mockStores: Store[] = [
     id: 'store-2',
     userId: 'user-1',
     name: 'Fashion Hub',
-    nameAr: 'فاشن هب',
     slug: 'fashion-hub',
     description: 'Trendy fashion for everyone',
-    descriptionAr: 'أزياء عصرية للجميع',
     isActive: true,
     createdAt: '2024-03-01T00:00:00Z',
   },
@@ -122,10 +118,8 @@ export const mockStores: Store[] = [
     id: 'store-3',
     userId: 'user-2',
     name: 'Home Essentials',
-    nameAr: 'أساسيات المنزل',
     slug: 'home-essentials',
     description: 'Everything you need for your home',
-    descriptionAr: 'كل ما تحتاجه لمنزلك',
     isActive: true,
     createdAt: '2024-03-11T00:00:00Z',
     telegramGroupId: '987654321',
@@ -134,10 +128,8 @@ export const mockStores: Store[] = [
     id: 'store-4',
     userId: 'user-3',
     name: 'Sports Zone',
-    nameAr: 'منطقة الرياضة',
     slug: 'sports-zone',
     description: 'Sports equipment and apparel',
-    descriptionAr: 'معدات وملابس رياضية',
     isActive: false,
     createdAt: '2024-04-06T00:00:00Z',
   },
@@ -148,9 +140,7 @@ export const mockProducts: Product[] = [
     id: 'prod-1',
     storeId: 'store-1',
     title: 'Wireless Earbuds Pro',
-    titleAr: 'سماعات لاسلكية برو',
     description: 'High-quality wireless earbuds with noise cancellation',
-    descriptionAr: 'سماعات لاسلكية عالية الجودة مع إلغاء الضوضاء',
     price: 79.99,
     media: [{ id: 'm1', url: '/placeholder.svg?height=400&width=400', type: 'image' }],
     isActive: true,
@@ -167,9 +157,7 @@ export const mockProducts: Product[] = [
     id: 'prod-2',
     storeId: 'store-1',
     title: 'Smart Watch X200',
-    titleAr: 'ساعة ذكية X200',
     description: 'Feature-packed smartwatch with health monitoring',
-    descriptionAr: 'ساعة ذكية غنية بالميزات مع مراقبة الصحة',
     price: 199.99,
     media: [{ id: 'm2', url: '/placeholder.svg?height=400&width=400', type: 'image' }],
     isActive: true,
@@ -185,9 +173,7 @@ export const mockProducts: Product[] = [
     id: 'prod-3',
     storeId: 'store-2',
     title: 'Classic Leather Jacket',
-    titleAr: 'جاكيت جلد كلاسيكي',
     description: 'Premium leather jacket for all seasons',
-    descriptionAr: 'جاكيت جلد فاخر لجميع الفصول',
     price: 249.99,
     media: [{ id: 'm3', url: '/placeholder.svg?height=400&width=400', type: 'image' }],
     isActive: true,
@@ -204,9 +190,7 @@ export const mockProducts: Product[] = [
     id: 'prod-4',
     storeId: 'store-3',
     title: 'Ergonomic Office Chair',
-    titleAr: 'كرسي مكتب مريح',
     description: 'Comfortable chair with lumbar support',
-    descriptionAr: 'كرسي مريح مع دعم للظهر',
     price: 349.99,
     media: [{ id: 'm4', url: '/placeholder.svg?height=400&width=400', type: 'image' }],
     isActive: true,
@@ -222,9 +206,7 @@ export const mockProducts: Product[] = [
     id: 'prod-5',
     storeId: 'store-3',
     title: 'LED Desk Lamp',
-    titleAr: 'مصباح مكتب LED',
     description: 'Adjustable LED lamp with multiple brightness levels',
-    descriptionAr: 'مصباح LED قابل للتعديل مع مستويات سطوع متعددة',
     price: 49.99,
     media: [{ id: 'm5', url: '/placeholder.svg?height=400&width=400', type: 'image' }],
     isActive: true,
@@ -302,6 +284,8 @@ export const mockOrders: Order[] = [
       { id: 'item-1', orderId: 'order-1', productId: 'prod-1', quantity: 2, price: 67.99, unitPrice: 67.99, totalPrice: 135.98, subtotal: 135.98 }
     ],
     totalPrice: 135.98,
+    totalAmount: 135.98,
+    deliveryFee: 0,
     status: 'delivered',
     notes: 'Please deliver before 5 PM',
     createdAt: '2024-06-01T10:00:00Z',
@@ -315,6 +299,8 @@ export const mockOrders: Order[] = [
       { id: 'item-2', orderId: 'order-2', productId: 'prod-2', quantity: 1, price: 199.99, unitPrice: 199.99, totalPrice: 199.99, subtotal: 199.99 }
     ],
     totalPrice: 199.99,
+    totalAmount: 199.99,
+    deliveryFee: 0,
     status: 'confirmed',
     notes: '',
     createdAt: '2024-06-10T11:30:00Z',
@@ -328,6 +314,8 @@ export const mockOrders: Order[] = [
       { id: 'item-3', orderId: 'order-3', productId: 'prod-3', quantity: 1, price: 199.99, unitPrice: 199.99, totalPrice: 199.99, subtotal: 199.99 }
     ],
     totalPrice: 199.99,
+    totalAmount: 199.99,
+    deliveryFee: 0,
     status: 'pending',
     notes: 'Gift wrap please',
     createdAt: '2024-06-15T09:00:00Z',
@@ -341,6 +329,8 @@ export const mockOrders: Order[] = [
       { id: 'item-4', orderId: 'order-4', productId: 'prod-4', quantity: 1, price: 349.99, unitPrice: 349.99, totalPrice: 349.99, subtotal: 349.99 }
     ],
     totalPrice: 349.99,
+    totalAmount: 349.99,
+    deliveryFee: 0,
     status: 'returned',
     notes: 'Customer changed mind',
     createdAt: '2024-06-05T15:00:00Z',
@@ -354,6 +344,8 @@ export const mockOrders: Order[] = [
       { id: 'item-5', orderId: 'order-5', productId: 'prod-5', quantity: 3, price: 49.99, unitPrice: 49.99, totalPrice: 149.97, subtotal: 149.97 }
     ],
     totalPrice: 149.97,
+    totalAmount: 149.97,
+    deliveryFee: 0,
     status: 'delivered',
     notes: '',
     createdAt: '2024-06-12T08:00:00Z',
@@ -367,6 +359,8 @@ export const mockOrders: Order[] = [
       { id: 'item-6', orderId: 'order-6', productId: 'prod-1', quantity: 1, price: 67.99, unitPrice: 67.99, totalPrice: 67.99, subtotal: 67.99 }
     ],
     totalPrice: 67.99,
+    totalAmount: 67.99,
+    deliveryFee: 0,
     status: 'problematic',
     notes: 'Address not found',
     createdAt: '2024-06-18T13:00:00Z',
@@ -377,30 +371,42 @@ export const mockOrders: Order[] = [
 export const mockAuditLogs: OrderAuditLog[] = [
   {
     id: 'log-1',
+    userId: 'user-1',
     orderId: 'order-1',
+    entityType: 'order',
+    entityId: 'order-1',
     action: 'status_change',
     previousValue: 'pending',
     newValue: 'confirmed',
     performedBy: 'user-1',
     performedAt: '2024-06-01T12:00:00Z',
+    createdAt: '2024-06-01T12:00:00Z',
   },
   {
     id: 'log-2',
+    userId: 'user-1',
     orderId: 'order-1',
+    entityType: 'order',
+    entityId: 'order-1',
     action: 'status_change',
     previousValue: 'confirmed',
     newValue: 'delivered',
     performedBy: 'user-1',
     performedAt: '2024-06-03T14:00:00Z',
+    createdAt: '2024-06-03T14:00:00Z',
   },
   {
     id: 'log-3',
+    userId: 'user-2',
     orderId: 'order-4',
+    entityType: 'order',
+    entityId: 'order-4',
     action: 'status_change',
     previousValue: 'delivered',
     newValue: 'returned',
     performedBy: 'user-2',
     performedAt: '2024-06-08T10:00:00Z',
+    createdAt: '2024-06-08T10:00:00Z',
   },
 ]
 
@@ -410,12 +416,11 @@ export const mockProductTypes: ProductType[] = [
     id: 'ptype-1',
     storeId: 'store-1',
     name: 'Electronics',
-    nameAr: 'إلكترونيات',
     description: 'Electronic devices and gadgets',
     customFields: [
-      { id: 'cf-1', name: 'Brand', nameAr: 'العلامة التجارية', type: 'text', required: true },
-      { id: 'cf-2', name: 'Warranty (months)', nameAr: 'الضمان (أشهر)', type: 'number', required: false, defaultValue: 12 },
-      { id: 'cf-3', name: 'Condition', nameAr: 'الحالة', type: 'select', required: true, options: ['New', 'Refurbished', 'Used'] },
+      { id: 'cf-1', name: 'Brand', type: 'text', required: true },
+      { id: 'cf-2', name: 'Warranty (months)', type: 'number', required: false, defaultValue: 12 },
+      { id: 'cf-3', name: 'Condition', type: 'select', required: true, options: ['New', 'Refurbished', 'Used'] },
     ],
     createdAt: '2024-02-16T00:00:00Z',
     isActive: true,
@@ -424,12 +429,11 @@ export const mockProductTypes: ProductType[] = [
     id: 'ptype-2',
     storeId: 'store-2',
     name: 'Clothing',
-    nameAr: 'ملابس',
     description: 'Fashion and apparel',
     customFields: [
-      { id: 'cf-4', name: 'Size', nameAr: 'المقاس', type: 'select', required: true, options: ['XS', 'S', 'M', 'L', 'XL', 'XXL'] },
-      { id: 'cf-5', name: 'Color', nameAr: 'اللون', type: 'text', required: true },
-      { id: 'cf-6', name: 'Material', nameAr: 'المادة', type: 'text', required: false },
+      { id: 'cf-4', name: 'Size', type: 'select', required: true, options: ['XS', 'S', 'M', 'L', 'XL', 'XXL'] },
+      { id: 'cf-5', name: 'Color', type: 'text', required: true },
+      { id: 'cf-6', name: 'Material', type: 'text', required: false },
     ],
     createdAt: '2024-03-01T00:00:00Z',
     isActive: true,
@@ -438,12 +442,11 @@ export const mockProductTypes: ProductType[] = [
     id: 'ptype-3',
     storeId: 'store-3',
     name: 'Furniture',
-    nameAr: 'أثاث',
     description: 'Home and office furniture',
     customFields: [
-      { id: 'cf-7', name: 'Dimensions', nameAr: 'الأبعاد', type: 'text', required: true },
-      { id: 'cf-8', name: 'Weight (kg)', nameAr: 'الوزن (كجم)', type: 'number', required: false },
-      { id: 'cf-9', name: 'Assembly Required', nameAr: 'يتطلب تجميع', type: 'boolean', required: true, defaultValue: false },
+      { id: 'cf-7', name: 'Dimensions', type: 'text', required: true },
+      { id: 'cf-8', name: 'Weight (kg)', type: 'number', required: false },
+      { id: 'cf-9', name: 'Assembly Required', type: 'boolean', required: true, defaultValue: false },
     ],
     createdAt: '2024-03-11T00:00:00Z',
     isActive: true,
@@ -453,18 +456,18 @@ export const mockProductTypes: ProductType[] = [
 // Categories - Nested Tree Structure
 export const mockCategories: Category[] = [
   // Electronics categories
-  { id: 'cat-1', productTypeId: 'ptype-1', parentId: null, name: 'Audio', nameAr: 'صوتيات', slug: 'audio', sortOrder: 1, isActive: true },
-  { id: 'cat-2', productTypeId: 'ptype-1', parentId: 'cat-1', name: 'Headphones', nameAr: 'سماعات', slug: 'headphones', sortOrder: 1, isActive: true },
-  { id: 'cat-3', productTypeId: 'ptype-1', parentId: 'cat-1', name: 'Speakers', nameAr: 'مكبرات صوت', slug: 'speakers', sortOrder: 2, isActive: true },
-  { id: 'cat-4', productTypeId: 'ptype-1', parentId: null, name: 'Wearables', nameAr: 'الأجهزة القابلة للارتداء', slug: 'wearables', sortOrder: 2, isActive: true },
-  { id: 'cat-5', productTypeId: 'ptype-1', parentId: 'cat-4', name: 'Smartwatches', nameAr: 'ساعات ذكية', slug: 'smartwatches', sortOrder: 1, isActive: true },
+  { id: 'cat-1', productTypeId: 'ptype-1', parentId: null, name: 'Audio', slug: 'audio', sortOrder: 1, isActive: true },
+  { id: 'cat-2', productTypeId: 'ptype-1', parentId: 'cat-1', name: 'Headphones', slug: 'headphones', sortOrder: 1, isActive: true },
+  { id: 'cat-3', productTypeId: 'ptype-1', parentId: 'cat-1', name: 'Speakers', slug: 'speakers', sortOrder: 2, isActive: true },
+  { id: 'cat-4', productTypeId: 'ptype-1', parentId: null, name: 'Wearables', slug: 'wearables', sortOrder: 2, isActive: true },
+  { id: 'cat-5', productTypeId: 'ptype-1', parentId: 'cat-4', name: 'Smartwatches', slug: 'smartwatches', sortOrder: 1, isActive: true },
   // Clothing categories
-  { id: 'cat-6', productTypeId: 'ptype-2', parentId: null, name: 'Outerwear', nameAr: 'ملابس خارجية', slug: 'outerwear', sortOrder: 1, isActive: true },
-  { id: 'cat-7', productTypeId: 'ptype-2', parentId: 'cat-6', name: 'Jackets', nameAr: 'جاكيتات', slug: 'jackets', sortOrder: 1, isActive: true },
+  { id: 'cat-6', productTypeId: 'ptype-2', parentId: null, name: 'Outerwear', slug: 'outerwear', sortOrder: 1, isActive: true },
+  { id: 'cat-7', productTypeId: 'ptype-2', parentId: 'cat-6', name: 'Jackets', slug: 'jackets', sortOrder: 1, isActive: true },
   // Furniture categories
-  { id: 'cat-8', productTypeId: 'ptype-3', parentId: null, name: 'Office', nameAr: 'مكتب', slug: 'office', sortOrder: 1, isActive: true },
-  { id: 'cat-9', productTypeId: 'ptype-3', parentId: 'cat-8', name: 'Chairs', nameAr: 'كراسي', slug: 'chairs', sortOrder: 1, isActive: true },
-  { id: 'cat-10', productTypeId: 'ptype-3', parentId: 'cat-8', name: 'Lighting', nameAr: 'إضاءة', slug: 'lighting', sortOrder: 2, isActive: true },
+  { id: 'cat-8', productTypeId: 'ptype-3', parentId: null, name: 'Office', slug: 'office', sortOrder: 1, isActive: true },
+  { id: 'cat-9', productTypeId: 'ptype-3', parentId: 'cat-8', name: 'Chairs', slug: 'chairs', sortOrder: 1, isActive: true },
+  { id: 'cat-10', productTypeId: 'ptype-3', parentId: 'cat-8', name: 'Lighting', slug: 'lighting', sortOrder: 2, isActive: true },
 ]
 
 // Media with Privacy Settings
@@ -578,7 +581,7 @@ export function getOrderStats() {
   const totalRevenue = mockOrders
     .filter(o => o.status === 'delivered')
     .reduce((sum, o) => sum + o.totalPrice, 0)
-  
+
   return { total, pending, confirmed, delivered, returned, problematic, totalRevenue }
 }
 
@@ -590,6 +593,6 @@ export function getStoreStats(storeId: string) {
   const revenue = orders
     .filter(o => o.status === 'delivered')
     .reduce((sum, o) => sum + o.totalPrice, 0)
-  
+
   return { total, delivered, revenue, productCount: products.length }
 }

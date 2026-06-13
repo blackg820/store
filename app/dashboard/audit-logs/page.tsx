@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useAuth } from '@/lib/auth-context'
-import { mockSystemAuditLogs, mockUsers } from '@/lib/mock-data'
+import { useData } from '@/lib/data-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -13,9 +13,11 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Search, FileText, Eye, Download } from 'lucide-react'
 import type { AuditLog } from '@/lib/types'
+import { AccessRestricted } from '@/components/dashboard/access-restricted'
 
 export default function AuditLogsPage() {
   const { user, language } = useAuth()
+  const { auditLogs, orders, products, buyers, stores, selectedStoreId } = useData()
   const isRtl = language === 'ar'
   const isAdmin = user?.role === 'admin'
 
@@ -24,10 +26,35 @@ export default function AuditLogsPage() {
   const [actionFilter, setActionFilter] = useState<string>('all')
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null)
 
-  // Filter logs based on user role
+  if (!isAdmin) {
+    return (
+      <AccessRestricted description="Audit logs are restricted to platform admins." />
+    )
+  }
+
+  // Filter logs based on user role and selected store
   let logs = isAdmin
-    ? mockSystemAuditLogs
-    : mockSystemAuditLogs.filter(log => log.userId === user?.id)
+    ? auditLogs
+    : auditLogs.filter(log => log.userId === user?.id)
+
+  if (selectedStoreId) {
+    logs = logs.filter(log => {
+      if (log.entityType === 'store') return log.entityId === selectedStoreId
+      if (log.entityType === 'product') {
+        const product = products.find(p => p.id === log.entityId)
+        return product?.storeId === selectedStoreId
+      }
+      if (log.entityType === 'order') {
+        const order = orders.find(o => o.id === log.entityId)
+        return order?.storeId === selectedStoreId
+      }
+      if (log.entityType === 'buyer') {
+        const buyer = buyers.find(b => b.id === log.entityId)
+        return buyer?.storeId === selectedStoreId
+      }
+      return false
+    })
+  }
 
   // Apply filters
   if (entityFilter !== 'all') {
@@ -95,8 +122,9 @@ export default function AuditLogsPage() {
   }
 
   const getUserName = (userId: string) => {
-    const user = mockUsers.find(u => u.id === userId)
-    return user?.name || userId
+    // In a real app we might have a users list in data context
+    // For now we'll just show the ID or try to find it in stores/orders context if possible
+    return userId
   }
 
   const formatDate = (dateStr: string) => {

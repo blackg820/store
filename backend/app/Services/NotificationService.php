@@ -11,7 +11,7 @@ class NotificationService
     public function sendTelegramNotification(Store $store, string $message, ?string $event = null, array $context = [])
     {
         $settings = $store->notification_settings;
-        
+
         // Parse settings if string
         if (is_string($settings)) {
             $settings = json_decode($settings, true) ?: [];
@@ -27,15 +27,16 @@ class NotificationService
             return true;
         }
 
-        $token = $store->telegram_token ?: env('TELEGRAM_BOT_TOKEN');
+        $token = app(\App\Services\TelegramService::class)->getToken($store);
         $chatIds = array_filter([
             $store->telegram_user_id,
             $store->telegram_group_id,
-            $store->telegram_chat_id
+            $store->telegram_chat_id,
+            $store->telegram_channel_id
         ]);
 
         if (!$token || empty($chatIds)) {
-            Log::warning("Telegram enabled but no token/chatIds for store {$store->id}");
+            Log::warning("Telegram notification skipped: Token or Chat IDs missing for Store {$store->id}");
             return false;
         }
 
@@ -43,14 +44,20 @@ class NotificationService
 
         foreach ($chatIds as $chatId) {
             try {
-                Http::post("https://api.telegram.org/bot{$token}/sendMessage", [
+                $payload = [
                     'chat_id' => $chatId,
                     'text' => str_replace('<br/>', "\n", $message),
                     'parse_mode' => 'HTML',
                     'reply_markup' => $inlineKeyboard ? ['inline_keyboard' => $inlineKeyboard] : null,
-                ]);
+                ];
+
+                if ($store->telegram_message_thread_id) {
+                    $payload['message_thread_id'] = $store->telegram_message_thread_id;
+                }
+
+                Http::post("https://api.telegram.org/bot{$token}/sendMessage", $payload);
             } catch (\Exception $e) {
-                Log::error("Failed to send Telegram notification to {$chatId}: " . $e->getMessage());
+                Log::error("Failed to send Telegram notification for Store {$store->id}: " . $e->getMessage());
             }
         }
 

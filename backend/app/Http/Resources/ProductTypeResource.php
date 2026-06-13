@@ -11,9 +11,8 @@ class ProductTypeResource extends JsonResource
     {
         return [
             'id' => (string) $this->id,
-            'storeId' => (string) $this->store_id,
+            'storeId' => $this->store_id ? (string) $this->store_id : null,
             'name' => $this->name ?? '',
-            'nameAr' => $this->name_ar ?? $this->name ?? '',
             'slug' => $this->slug ?? '',
             'customFields' => $this->schema ?? [],
             'isActive' => (bool) $this->is_active,

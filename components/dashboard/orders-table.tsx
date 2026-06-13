@@ -43,8 +43,9 @@ import {
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { MoreHorizontal, Search, Download, Plus, Eye, Edit, Trash2, AlertTriangle, Save } from 'lucide-react'
+import { MoreHorizontal, Search, Download, Plus, Eye, Edit, Trash2, AlertTriangle, Save, Send as SendIcon, Printer, ExternalLink } from 'lucide-react'
 import { toast } from 'sonner'
+import { Skeleton } from '@/components/ui/skeleton'
 
 const statusColors: Record<OrderStatus, string> = {
   pending: 'bg-warning/10 text-warning border-warning/20',
@@ -52,6 +53,21 @@ const statusColors: Record<OrderStatus, string> = {
   delivered: 'bg-success/10 text-success border-success/20',
   returned: 'bg-muted text-muted-foreground border-muted',
   problematic: 'bg-destructive/10 text-destructive border-destructive/20',
+}
+
+const riskBadgeStyles: Record<string, string> = {
+  normal: 'bg-success/10 text-success border-success/20',
+  warning: 'bg-warning/10 text-warning border-warning/20',
+  high_risk: 'bg-destructive/10 text-destructive border-destructive/20',
+  low: 'bg-success/10 text-success border-success/20',
+  medium: 'bg-warning/10 text-warning border-warning/20',
+  high: 'bg-destructive/10 text-destructive border-destructive/20',
+}
+
+function getOrderRisk(order: Order, buyer?: any) {
+  const riskLevel = order.customer?.riskLevel || buyer?.riskLevel || buyer?.risk || buyer?.riskScore || 'normal'
+  const rejectionCount = order.customer?.rejectionCount ?? buyer?.rejectionCount ?? buyer?.totalRejections ?? buyer?.rejectedOrders ?? 0
+  return { riskLevel, rejectionCount, isHighRisk: riskLevel === 'high_risk' || riskLevel === 'high' }
 }
 
 interface OrdersTableProps {
@@ -64,13 +80,13 @@ export function OrdersTable({ storeId, limit, showActions = true }: OrdersTableP
   const { language } = useAuth()
   const { t } = useTranslations()
   const isAr = language === 'ar' || language === 'ku'
-  const { orders, products, buyers, stores, updateOrderStatus, updateOrder, deleteOrder, isDataLoading, selectedStoreId } = useData()
-  
+  const { orders, products, buyers, stores, updateOrderStatus, updateOrder, sendOrderToAlWaseet, deleteOrder, isDataLoading, selectedStoreId } = useData()
+
   const searchParams = useSearchParams()
   const initialSearch = searchParams.get('search') || ''
-  
+
   const [searchQuery, setSearchQuery] = useState(initialSearch)
-  
+
   useEffect(() => {
     if (initialSearch) {
       setSearchQuery(initialSearch)
@@ -80,7 +96,7 @@ export function OrdersTable({ storeId, limit, showActions = true }: OrdersTableP
   // Auto-open order if search matches exactly one ID (for deep linking)
   useEffect(() => {
     if (initialSearch && orders.length > 0) {
-      const match = orders.find(o => 
+      const match = orders.find(o =>
         o.id === initialSearch || o.orderGroupId === initialSearch
       )
       if (match) {
@@ -103,8 +119,9 @@ export function OrdersTable({ storeId, limit, showActions = true }: OrdersTableP
   const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable')
   const [dateRange, setDateRange] = useState<'all' | 'today' | 'week' | 'month'>('all')
 
-  let filteredOrders = storeId 
-    ? orders.filter(o => o.storeId === storeId)
+  const activeStoreId = storeId || selectedStoreId
+  let filteredOrders = activeStoreId
+    ? orders.filter(o => o.storeId === activeStoreId)
     : orders
 
   if (statusFilter !== 'all') {
@@ -157,7 +174,7 @@ export function OrdersTable({ storeId, limit, showActions = true }: OrdersTableP
       toast.error(language === 'en' ? 'No unprocessed orders to export' : 'لا توجد طلبات غير معالجة للتصدير')
       return
     }
-    
+
     const printWindow = window.open('', '_blank')
     if (!printWindow) return
 
@@ -189,17 +206,17 @@ export function OrdersTable({ storeId, limit, showActions = true }: OrdersTableP
           <div class="header">
             <div>
               <h1>Storify - Professional Order Report</h1>
-              <p class="meta">Generated for: ${storeId ? 'Store #' + storeId : 'All Managed Stores'}</p>
+              <p class="meta">Generated for: ${storeId ? 'Store #' + storeId : (isAr ? 'جميع المتاجر المدارة' : 'All Managed Stores')}</p>
             </div>
             <div style="text-align: right">
-              <p class="meta">Date: ${new Date().toLocaleString()}</p>
-              <p class="meta">Total Orders: ${unprocessed.length}</p>
+              <p class="meta">${isAr ? 'التاريخ' : 'Date'}: ${new Date().toLocaleString()}</p>
+              <p class="meta">${isAr ? 'إجمالي الطلبات' : 'Total Orders'}: ${unprocessed.length}</p>
             </div>
           </div>
           <table>
             <thead>
               <tr>
-                <th>ID</th>
+                <th>${isAr ? 'المعرف' : 'ID'}</th>
                 <th>${isAr ? 'المشتري' : 'Buyer'}</th>
                 <th>${isAr ? 'الهاتف' : 'Phone'}</th>
                 <th>${isAr ? 'المنتج' : 'Product'}</th>
@@ -216,10 +233,10 @@ export function OrdersTable({ storeId, limit, showActions = true }: OrdersTableP
                     <td style="font-family: monospace; font-size: 11px;">#${o.id.slice(0, 8).toUpperCase()}</td>
                     <td><strong>${buyer?.name}</strong></td>
                     <td>${buyer?.phone}</td>
-                    <td>${o.items.map(i => i.product?.title || '').join(', ')}</td>
+                    <td>${o.items.map(i => i.product?.title || (isAr ? 'منتج غير معروف' : 'Unknown')).join(', ')}</td>
                     <td>${buyer?.governorate || ''}</td>
                     <td>${buyer?.district || ''}</td>
-                    <td style="font-weight: bold;">${o.totalAmount.toLocaleString()} IQD</td>
+                    <td style="font-weight: bold;">${o.totalAmount.toLocaleString('en-US')} ${t('currency')}</td>
                   </tr>
                 `
               }).join('')}
@@ -265,7 +282,7 @@ export function OrdersTable({ storeId, limit, showActions = true }: OrdersTableP
 
   const handleSaveEdit = () => {
     if (selectedOrder) {
-      updateOrder(selectedOrder.id, { 
+      updateOrder(selectedOrder.id, {
         notes: editNotes,
         status: editStatus,
         totalAmount: editTotalAmount,
@@ -303,7 +320,7 @@ export function OrdersTable({ storeId, limit, showActions = true }: OrdersTableP
         new Date(order.createdAt).toLocaleDateString(),
       ]
     })
-    
+
     const csv = [headers, ...rows].map(row => row.join(',')).join('\n')
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
@@ -332,7 +349,7 @@ export function OrdersTable({ storeId, limit, showActions = true }: OrdersTableP
                 <SelectValue placeholder={t('filter')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="all">{t('allStatuses')}</SelectItem>
                 <SelectItem value="pending">{t('pending')}</SelectItem>
                 <SelectItem value="confirmed">{t('confirmed')}</SelectItem>
                 <SelectItem value="delivered">{t('delivered')}</SelectItem>
@@ -342,33 +359,33 @@ export function OrdersTable({ storeId, limit, showActions = true }: OrdersTableP
             </Select>
             <Select value={dateRange} onValueChange={(v) => setDateRange(v as any)}>
               <SelectTrigger className="w-full sm:w-44 bg-white/5 border-white/10 rounded-xl h-11">
-                <SelectValue placeholder="Time Range" />
+                <SelectValue placeholder={t('timeRange')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Time</SelectItem>
-                <SelectItem value="today">Today</SelectItem>
-                <SelectItem value="week">This Week</SelectItem>
-                <SelectItem value="month">This Month</SelectItem>
+                <SelectItem value="all">{t('allTime')}</SelectItem>
+                <SelectItem value="today">{t('today')}</SelectItem>
+                <SelectItem value="week">{t('thisWeek')}</SelectItem>
+                <SelectItem value="month">{t('thisMonth')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className="flex flex-wrap gap-2 w-full lg:w-auto">
             <div className="flex items-center bg-white/5 border border-white/10 rounded-xl p-1 me-2">
-              <Button 
-                variant={density === 'comfortable' ? 'secondary' : 'ghost'} 
-                size="sm" 
+              <Button
+                variant={density === 'comfortable' ? 'secondary' : 'ghost'}
+                size="sm"
                 onClick={() => setDensity('comfortable')}
                 className="rounded-lg h-9 px-3"
               >
-                Comfortable
+                {t('comfortable')}
               </Button>
-              <Button 
-                variant={density === 'compact' ? 'secondary' : 'ghost'} 
-                size="sm" 
+              <Button
+                variant={density === 'compact' ? 'secondary' : 'ghost'}
+                size="sm"
                 onClick={() => setDensity('compact')}
                 className="rounded-lg h-9 px-3"
               >
-                Compact
+                {t('compact')}
               </Button>
             </div>
             <Button variant="outline" size="sm" onClick={exportToCSV} className="bg-white/5 border-white/10 hover:bg-white/10 rounded-xl h-11 px-6">
@@ -377,7 +394,7 @@ export function OrdersTable({ storeId, limit, showActions = true }: OrdersTableP
             </Button>
             <Button variant="outline" size="sm" onClick={handleExportPDF} className="bg-white/5 border-white/10 hover:bg-white/10 rounded-xl h-11 px-6">
               <Download className="h-4 w-4 me-2" />
-              {isAr ? 'تصدير PDF' : 'Export PDF'}
+              {t('exportPDF')}
             </Button>
           </div>
         </div>
@@ -388,12 +405,13 @@ export function OrdersTable({ storeId, limit, showActions = true }: OrdersTableP
           <Table className="relative">
           <TableHeader className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-white/10 shadow-sm">
             <TableRow className="hover:bg-transparent border-none">
-              <TableHead className="text-muted-foreground font-bold uppercase text-[10px] tracking-widest py-4 ps-6">Order ID</TableHead>
+              <TableHead className="text-muted-foreground font-bold uppercase text-[10px] tracking-widest py-4 ps-6">{t('orderID')}</TableHead>
               <TableHead className="text-muted-foreground font-bold uppercase text-[10px] tracking-widest">{t('products')}</TableHead>
-              <TableHead className="text-muted-foreground font-bold uppercase text-[10px] tracking-widest">Buyer</TableHead>
+              <TableHead className="text-muted-foreground font-bold uppercase text-[10px] tracking-widest">{t('buyers')}</TableHead>
               <TableHead className="text-muted-foreground font-bold uppercase text-[10px] tracking-widest text-center">{t('quantity')}</TableHead>
               <TableHead className="text-muted-foreground font-bold uppercase text-[10px] tracking-widest">{t('total')}</TableHead>
               <TableHead className="text-muted-foreground font-bold uppercase text-[10px] tracking-widest">{t('status')}</TableHead>
+              <TableHead className="text-muted-foreground font-bold uppercase text-[10px] tracking-widest">{t('logisticsStatus')}</TableHead>
               <TableHead className="text-muted-foreground font-bold uppercase text-[10px] tracking-widest">{t('date')}</TableHead>
               {showActions && <TableHead className="text-muted-foreground font-bold uppercase text-[10px] tracking-widest text-end pe-6">{t('actions')}</TableHead>}
             </TableRow>
@@ -401,15 +419,25 @@ export function OrdersTable({ storeId, limit, showActions = true }: OrdersTableP
           <TableBody>
             {isDataLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
-                <TableRow key={i}>
-                  <TableCell><div className="w-24 h-4 bg-muted/20 animate-pulse rounded" /></TableCell>
-                  <TableCell><div className="w-48 h-4 bg-muted/20 animate-pulse rounded" /></TableCell>
-                  <TableCell><div className="w-32 h-4 bg-muted/20 animate-pulse rounded" /></TableCell>
-                  <TableCell className="text-center"><div className="w-8 h-4 bg-muted/20 animate-pulse rounded mx-auto" /></TableCell>
-                  <TableCell><div className="w-20 h-4 bg-muted/20 animate-pulse rounded" /></TableCell>
-                  <TableCell><div className="w-16 h-6 bg-muted/20 animate-pulse rounded-full" /></TableCell>
-                  <TableCell><div className="w-24 h-4 bg-muted/20 animate-pulse rounded" /></TableCell>
-                  {showActions && <TableCell className="text-end"><div className="w-8 h-8 bg-muted/20 animate-pulse rounded ml-auto" /></TableCell>}
+                <TableRow key={i} className="hover:bg-transparent border-b border-border/50">
+                  <TableCell className="ps-6"><Skeleton className="w-24 h-5 rounded-lg" /></TableCell>
+                  <TableCell>
+                    <div className="space-y-3">
+                      <Skeleton className="w-48 h-5 rounded-lg" />
+                      <Skeleton className="w-32 h-4 rounded-lg opacity-50" />
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-y-3">
+                      <Skeleton className="w-32 h-5 rounded-lg" />
+                      <Skeleton className="w-24 h-4 rounded-lg opacity-50" />
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-center"><Skeleton className="w-8 h-8 rounded-full mx-auto" /></TableCell>
+                  <TableCell><Skeleton className="w-24 h-5 rounded-lg font-bold" /></TableCell>
+                  <TableCell><Skeleton className="w-20 h-7 rounded-full" /></TableCell>
+                  <TableCell><Skeleton className="w-28 h-5 rounded-lg" /></TableCell>
+                  {showActions && <TableCell className="text-end pe-6"><Skeleton className="w-10 h-10 rounded-xl ms-auto" /></TableCell>}
                 </TableRow>
               ))
             ) : filteredOrders.length === 0 ? (
@@ -422,12 +450,12 @@ export function OrdersTable({ storeId, limit, showActions = true }: OrdersTableP
               filteredOrders.map((order) => {
                 const buyer = buyers.find(b => b.id === order.buyerId)
                 const store = stores.find(s => s.id === order.storeId)
-                const isHighRisk = buyer?.risk === 'high'
+                const risk = getOrderRisk(order, buyer)
 
                 return (
                   <TableRow key={order.id} className={cn(
                     'transition-colors hover:bg-white/5 border-b border-white/5 last:border-0 cursor-pointer',
-                    isHighRisk && 'bg-destructive/5',
+                    risk.isHighRisk && 'bg-destructive/5',
                     density === 'compact' ? 'h-12' : 'h-20'
                   )} onClick={() => handleView(order)}>
                     <TableCell className={cn("font-mono text-sm ps-6", density === 'compact' ? "py-2" : "py-4")}>
@@ -436,30 +464,57 @@ export function OrdersTable({ storeId, limit, showActions = true }: OrdersTableP
                     <TableCell className={density === 'compact' ? "py-2" : "py-4"}>
                       <div className="flex flex-col">
                         <span className="font-medium">
-                          {order.items[0]?.product?.title || 'Unknown Product'}
-                          {order.items.length > 1 && ` + ${order.items.length - 1} more`}
+                          {order.items[0]?.product?.title || t('unknownProduct')}
+                          {order.items.length > 1 && ` + ${order.items.length - 1} ${t('more')}`}
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          {order.items.length} items
+                          {order.items.length} {t('items')}
                         </span>
-                        <p className="text-[10px] text-muted-foreground">{language === 'ar' ? store?.nameAr : store?.name}</p>
+                        <p className="text-[10px] text-muted-foreground">{store?.name}</p>
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        {isHighRisk && <AlertTriangle className="h-4 w-4 text-destructive" />}
+                        {risk.isHighRisk && <AlertTriangle className="h-4 w-4 text-destructive" />}
                         <div>
                           <p className="font-medium">{buyer?.name}</p>
                           <p className="text-xs text-muted-foreground">{buyer?.phone}</p>
+                          <Badge variant="outline" className={cn('mt-1 h-5 px-1.5 text-[10px]', riskBadgeStyles[risk.riskLevel] || riskBadgeStyles.normal)}>
+                            {String(risk.riskLevel).replace('_', ' ')} · {risk.rejectionCount} rejected
+                          </Badge>
                         </div>
                       </div>
                     </TableCell>
                     <TableCell className="text-center">{order.items.reduce((acc, curr) => acc + curr.quantity, 0)}</TableCell>
-                    <TableCell className="font-medium">{order.totalAmount.toLocaleString()} IQD</TableCell>
+                    <TableCell className="font-medium">{order.totalAmount.toLocaleString('en-US')} {t('currency')}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={cn('capitalize', statusColors[order.status])}>
                         {t(order.status as 'pending' | 'confirmed' | 'delivered' | 'returned' | 'problematic')}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {order.alwaseet?.syncStatus ? (
+                        <div className="flex flex-col gap-1">
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "text-[10px] px-2 py-0 h-5",
+                              order.alwaseet.syncStatus === 'sent' && "bg-success/10 text-success border-success/20",
+                              order.alwaseet.syncStatus === 'failed' && "bg-destructive/10 text-destructive border-destructive/20",
+                              order.alwaseet.syncStatus === 'pending' && "bg-warning/10 text-warning border-warning/20"
+                            )}
+                          >
+                            {t(order.alwaseet.syncStatus as any)}
+                          </Badge>
+                          {order.alwaseet.status && (
+                            <span className="text-[9px] text-muted-foreground font-medium truncate max-w-[100px]">
+                              {order.alwaseet.status}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground/40">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {new Date(order.createdAt).toLocaleDateString()}
@@ -477,12 +532,47 @@ export function OrdersTable({ storeId, limit, showActions = true }: OrdersTableP
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => handleView(order)}>
                               <Eye className="h-4 w-4 me-2" />
-                              View Details
+                              {t('viewDetails')}
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleEdit(order)}>
                               <Edit className="h-4 w-4 me-2" />
                               {t('edit')}
                             </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            {order.status === 'confirmed' && !order.alwaseet?.orderId && (
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  sendOrderToAlWaseet(order.id)
+                                }}
+                                className="text-primary font-bold"
+                              >
+                                <SendIcon className="h-4 w-4 me-2" />
+                                {t('sendToAlWaseet')}
+                              </DropdownMenuItem>
+                            )}
+                            {order.alwaseet?.qrLink && (
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  window.open(order.alwaseet?.qrLink, '_blank')
+                                }}
+                              >
+                                <Printer className="h-4 w-4 me-2" />
+                                {t('printQr')}
+                              </DropdownMenuItem>
+                            )}
+                            {order.alwaseet?.orderId && (
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  toast.info(`Al-Waseet ID: ${order.alwaseet?.orderId}`)
+                                }}
+                              >
+                                <ExternalLink className="h-4 w-4 me-2" />
+                                {t('viewDetails')} (Logistics)
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               onClick={() => handleDelete(order.id)}
@@ -513,15 +603,15 @@ export function OrdersTable({ storeId, limit, showActions = true }: OrdersTableP
               {t('editOrder')} #{selectedOrder?.id.slice(0, 8).toUpperCase()}
             </DialogTitle>
             <DialogDescription>
-              {language === 'en' ? 'Modify order details and customer information.' : 'تعديل تفاصيل الطلب ومعلومات العميل.'}
+              {t('modifyOrderDesc')}
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="grid gap-6 py-4 md:grid-cols-2">
             {/* Customer Section */}
             <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
               <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">
-                {language === 'en' ? 'Customer Details' : 'تفاصيل العميل'}
+                {t('customerDetails')}
               </h3>
               <div className="space-y-3">
                 <div className="space-y-1.5">
@@ -548,7 +638,7 @@ export function OrdersTable({ storeId, limit, showActions = true }: OrdersTableP
             {/* Order Section */}
             <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
               <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">
-                {language === 'en' ? 'Order Management' : 'إدارة الطلب'}
+                {t('orderManagement')}
               </h3>
               <div className="space-y-3">
                 <div className="space-y-1.5">
@@ -568,11 +658,11 @@ export function OrdersTable({ storeId, limit, showActions = true }: OrdersTableP
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label htmlFor="totalAmt">{language === 'en' ? 'Total Amount' : 'المجموع الكلي'}</Label>
+                    <Label htmlFor="totalAmt">{t('totalRevenue')}</Label>
                     <Input id="totalAmt" type="number" value={editTotalAmount} onChange={(e) => setEditTotalAmount(Number(e.target.value))} />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="delFee">{language === 'en' ? 'Delivery Fee' : 'أجور التوصيل'}</Label>
+                    <Label htmlFor="delFee">{t('deliveryFeeLabel')}</Label>
                     <Input id="delFee" type="number" value={editDeliveryFee} onChange={(e) => setEditDeliveryFee(Number(e.target.value))} />
                   </div>
                 </div>
@@ -582,7 +672,7 @@ export function OrdersTable({ storeId, limit, showActions = true }: OrdersTableP
                     value={editNotes}
                     onChange={(e) => setEditNotes(e.target.value)}
                     rows={2}
-                    placeholder={language === 'en' ? 'Internal administrative notes...' : 'ملاحظات إدارية داخلية...'}
+                    placeholder={t('internalNotesPlaceholder')}
                   />
                 </div>
               </div>
@@ -612,10 +702,19 @@ export function OrdersTable({ storeId, limit, showActions = true }: OrdersTableP
               {(() => {
                 const buyer = buyers.find(b => b.id === selectedOrder.buyerId)
                 const store = stores.find(s => s.id === selectedOrder.storeId)
+                const risk = getOrderRisk(selectedOrder, buyer)
                 return (
                   <div className="grid gap-4 sm:grid-cols-2">
+                    {risk.isHighRisk && (
+                      <div className="sm:col-span-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                        <div className="flex items-start gap-2">
+                          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                          <p>This customer is high risk based on global rejection history. Review manually before changing fulfillment status.</p>
+                        </div>
+                      </div>
+                    )}
                     <div className="space-y-2">
-                      <Label className="text-muted-foreground">Order ID</Label>
+                      <Label className="text-muted-foreground">{t('orderID')}</Label>
                       <p className="font-mono">{selectedOrder.id}</p>
                     </div>
                     <div className="space-y-2">
@@ -626,13 +725,16 @@ export function OrdersTable({ storeId, limit, showActions = true }: OrdersTableP
                     </div>
                     <div className="space-y-2">
                       <Label className="text-muted-foreground">{t('stores')}</Label>
-                      <p>{language === 'ar' ? store?.nameAr : store?.name}</p>
+                      <p>{store?.name}</p>
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-muted-foreground">Buyer</Label>
+                      <Label className="text-muted-foreground">{t('buyers')}</Label>
                       <div>
                         <p>{buyer?.name}</p>
                         <p className="text-sm text-muted-foreground">{buyer?.phone}</p>
+                        <Badge variant="outline" className={cn('mt-2 capitalize', riskBadgeStyles[risk.riskLevel] || riskBadgeStyles.normal)}>
+                          {String(risk.riskLevel).replace('_', ' ')} · {risk.rejectionCount} rejected
+                        </Badge>
                       </div>
                     </div>
                     <div className="space-y-2">
@@ -641,18 +743,18 @@ export function OrdersTable({ storeId, limit, showActions = true }: OrdersTableP
                     </div>
                     <div className="grid grid-cols-2 gap-4 border-t pt-4">
                       <div>
-                        <Label className="text-xs text-muted-foreground uppercase">Items</Label>
+                        <Label className="text-xs text-muted-foreground uppercase">{t('products')}</Label>
                         <div className="space-y-1 mt-1">
                           {selectedOrder.items.map((item, idx) => (
                             <div key={idx} className="text-sm">
-                              {item.product?.title || 'Unknown'} x{item.quantity}
+                              {item.product?.title || t('unknown')} x{item.quantity}
                             </div>
                           ))}
                         </div>
                       </div>
                       <div>
-                        <Label className="text-xs text-muted-foreground uppercase">Total Amount</Label>
-                        <p className="text-lg font-bold text-primary">{selectedOrder.totalAmount.toLocaleString()} IQD</p>
+                        <Label className="text-xs text-muted-foreground uppercase">{t('total')}</Label>
+                        <p className="text-lg font-bold text-primary">{selectedOrder.totalAmount.toLocaleString('en-US')} {t('currency')}</p>
                       </div>
                     </div>
                     {selectedOrder.notes && (

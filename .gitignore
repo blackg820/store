@@ -10,8 +10,23 @@ next.user-config.*
 # Environment variables
 .env
 .env*.local
+backend/.env.testing.mysql
 
 # Common ignores
 node_modules
 .next/
+frontend-nuxt/.nuxt/
+frontend-nuxt/.output/
 .DS_Store
+
+# Runtime artifacts and local data
+*.log
+logs/
+*.sqlite
+database.sqlite
+backend/database.sqlite
+backend/database/database.sqlite
+
+# Generated/static runtime output
+backend/public/_next/
+public/uploads/

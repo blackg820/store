@@ -23,14 +23,27 @@ import { toast } from 'sonner'
 import { validatePhone } from '@/lib/order-utils'
 import { cn } from '@/lib/utils'
 
-export function CartDrawer({ storeSlug, storeId }: { storeSlug?: string, storeId?: string }) {
+interface CartDrawerStoreData {
+  name?: string
+  whatsappNumber?: string | null
+}
+
+export function CartDrawer({
+  storeSlug,
+  storeId,
+  storeData: providedStoreData,
+}: {
+  storeSlug?: string
+  storeId?: string
+  storeData?: CartDrawerStoreData
+}) {
   const { items, removeFromCart, updateQuantity, totalPrice, totalItems, clearCart } = useCart()
   const { language } = useAuth()
   const { t } = useTranslations()
   const [isOpen, setIsOpen] = useState(false)
   const [isCheckingOut, setIsCheckingOut] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  
+
   // Buyer Auth State
   const [buyer, setBuyer] = useState<any>(null)
   const [showAuth, setShowAuth] = useState(false)
@@ -54,7 +67,7 @@ export function CartDrawer({ storeSlug, storeId }: { storeSlug?: string, storeId
     landmark: '',
     notes: '',
   })
-  const [storeData, setStoreData] = useState<any>(null)
+  const [storeData, setStoreData] = useState<CartDrawerStoreData | null>(providedStoreData || null)
 
   // Load buyer from localStorage on mount
   useEffect(() => {
@@ -74,68 +87,42 @@ export function CartDrawer({ storeSlug, storeId }: { storeSlug?: string, storeId
       } catch (e) {}
     }
 
-    // Fetch store data for WhatsApp number
+    if (providedStoreData) {
+      setStoreData(providedStoreData)
+      return
+    }
+
+    // Fallback for product pages or older callers that do not pass store data.
     if (storeSlug) {
-      fetch(`/api/stores/${storeSlug}`)
+      fetch(`/api/v1/public/store/${storeSlug}`)
         .then(res => res.json())
         .then(data => {
           if (data.success) setStoreData(data.data.store)
         })
         .catch(console.error)
     }
-  }, [storeSlug])
+  }, [providedStoreData, storeSlug])
 
   const updateField = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
   const handleAuth = async () => {
-    if (!authData.phone || !authData.password) {
-      toast.error('Phone and password are required')
-      return
-    }
-
-    setAuthLoading(true)
-    try {
-      const res = await fetch('/api/v1/buyers/auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: authMode,
-          ...authData
-        })
-      })
-
-      const result = await res.json()
-      if (result.success) {
-        toast.success(result.message)
-        setBuyer(result.data.buyer)
-        localStorage.setItem('storify_buyer', JSON.stringify(result.data))
-        
-        // Auto-fill form
-        setFormData(prev => ({
-          ...prev,
-          name: result.data.buyer.name,
-          phone: result.data.buyer.phone,
-          governorate: result.data.buyer.governorate,
-          district: result.data.buyer.district,
-          landmark: result.data.buyer.landmark || ''
-        }))
-        setShowAuth(false)
-      } else {
-        toast.error(result.error)
-      }
-    } catch (e) {
-      toast.error('Authentication failed')
-    } finally {
-      setAuthLoading(false)
-    }
+    toast.error(t('continueAsGuest'))
+    setShowAuth(false)
   }
 
   const handleLogout = () => {
     setBuyer(null)
     localStorage.removeItem('storify_buyer')
-    toast.success('Logged out successfully')
+    toast.success(t('logout'))
+  }
+
+  const checkoutErrorMessage = (result: { code?: string; message?: string; error?: string }) => {
+    if (result.code === 'STORE_CLOSED') return t('storeClosed')
+    if (result.code === 'CHECKOUT_DISABLED') return t('checkoutDisabled')
+    if (result.code === 'STORE_UNAVAILABLE') return t('storeUnavailable')
+    return result.message || result.error || t('error')
   }
 
   const handleCheckout = async () => {
@@ -151,12 +138,15 @@ export function CartDrawer({ storeSlug, storeId }: { storeSlug?: string, storeId
 
     setIsSubmitting(true)
     try {
-      const res = await fetch('/api/public/orders', {
+      const res = await fetch('/api/v1/public/orders', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify({
           storeSlug,
-          storeId,
+          storeId: String(storeId),
           buyerName: formData.name,
           buyerPhone: formData.phone,
           governorate: formData.governorate,
@@ -164,7 +154,7 @@ export function CartDrawer({ storeSlug, storeId }: { storeSlug?: string, storeId
           landmark: formData.landmark,
           notes: formData.notes,
           items: items.map(item => ({
-            productId: item.productId,
+            productId: String(item.productId),
             quantity: item.quantity,
             options: item.options
           }))
@@ -174,29 +164,41 @@ export function CartDrawer({ storeSlug, storeId }: { storeSlug?: string, storeId
       const result = await res.json()
       if (result.success) {
         toast.success(t('orderSuccess' as any))
-        
+
         // WhatsApp Integration
         if (storeData?.whatsappNumber) {
-          const itemsText = items.map(item => 
-            `- ${language === 'en' ? item.name : item.nameAr} x${item.quantity} (${item.price.toLocaleString()} ${currencySymbol})`
-          ).join('%0A')
-          
+          const itemsText = items.map(item => {
+            let text = `- ${item.name} x${item.quantity}`
+
+            // Add options if any
+            if (item.options && Object.keys(item.options).length > 0) {
+              const opts = Object.entries(item.options)
+                .map(([k, v]) => `${k}: ${v}`)
+                .join(', ')
+              text += ` (${opts})`
+            }
+
+            text += ` [${item.price.toLocaleString('en-US')} ${currencySymbol}]`
+            return text
+          }).join('%0A')
+
           const totalWithDelivery = totalPrice + totalDeliveryFee
-          
-          const message = `*طلب جديد من متجر ${storeData.nameAr || storeData.name}*%0A%0A` +
-            `*الزبون:* ${formData.name}%0A` +
-            `*الهاتف:* ${formData.phone}%0A` +
-            `*العنوان:* ${formData.governorate} - ${formData.district}${formData.landmark ? ` (${formData.landmark})` : ''}%0A%0A` +
-            `*المنتجات:*%0A${itemsText}%0A%0A` +
-            `*سعر المنتجات:* ${totalPrice.toLocaleString()} ${currencySymbol}%0A` +
-            `*سعر التوصيل:* ${totalDeliveryFee.toLocaleString()} ${currencySymbol}%0A` +
-            `*المجموع الكلي:* ${totalWithDelivery.toLocaleString()} ${currencySymbol}%0A%0A` +
-            (formData.notes ? `*ملاحظات:* ${formData.notes}%0A%0A` : '') +
-            `رقم الطلب: ${result.orderGroupId}`
+
+          const orderId = result.data?.orderGroupId || result.orderGroupId || result.id
+          const message = `*${t('checkoutWhatsappNewOrder').replace('{{store}}', storeData.name || '')}*%0A%0A` +
+            `*${t('checkoutWhatsappBuyer')}:* ${formData.name}%0A` +
+            `*${t('checkoutWhatsappPhone')}:* ${formData.phone}%0A` +
+            `*${t('checkoutWhatsappAddress')}:* ${formData.governorate} - ${formData.district}${formData.landmark ? ` (${formData.landmark})` : ''}%0A%0A` +
+            `*${t('checkoutWhatsappProducts')}:*%0A${itemsText}%0A%0A` +
+            `*${t('productsPrice')}:* ${totalPrice.toLocaleString('en-US')} ${currencySymbol}%0A` +
+            `*${t('deliveryFee')}:* ${totalDeliveryFee.toLocaleString('en-US')} ${currencySymbol}%0A` +
+            `*${t('checkoutWhatsappTotal')}:* ${totalWithDelivery.toLocaleString('en-US')} ${currencySymbol}%0A%0A` +
+            (formData.notes ? `*${t('checkoutWhatsappNotes')}:* ${formData.notes}%0A%0A` : '') +
+            `${t('checkoutWhatsappOrderNumber')}: ${orderId}`
 
           const cleanPhone = storeData.whatsappNumber.replace(/\D/g, '')
           const whatsappUrl = `https://wa.me/${cleanPhone}?text=${message}`
-          
+
           // Use location.href for better mobile compatibility (avoiding popup blockers)
           window.location.href = whatsappUrl
         }
@@ -205,9 +207,10 @@ export function CartDrawer({ storeSlug, storeId }: { storeSlug?: string, storeId
         setIsOpen(false)
         setIsCheckingOut(false)
       } else {
-        toast.error(result.error || t('error'))
+        toast.error(checkoutErrorMessage(result))
       }
     } catch (error) {
+      console.error('Checkout error:', error)
       toast.error(t('error'))
     } finally {
       setIsSubmitting(false)
@@ -242,15 +245,10 @@ export function CartDrawer({ storeSlug, storeId }: { storeSlug?: string, storeId
                 <LogOut className="h-3 w-3" />
                 {buyer.name}
               </Button>
-            ) : !isCheckingOut && (
-              <Button variant="ghost" size="sm" onClick={() => { setShowAuth(true); setIsCheckingOut(true); }} className="text-xs gap-2 text-primary">
-                <LogIn className="h-3 w-3" />
-                {language === 'ar' ? 'دخول' : 'Login'}
-              </Button>
-            )}
+            ) : null}
           </div>
           <SheetDescription>
-            {isCheckingOut 
+            {isCheckingOut
               ? t('completeOrderDetails')
               : t('itemsInCart').replace('{{count}}', String(totalItems))}
           </SheetDescription>
@@ -265,12 +263,12 @@ export function CartDrawer({ storeSlug, storeId }: { storeSlug?: string, storeId
                     <h3 className="text-lg font-bold">{authMode === 'login' ? t('loginToStorify') : t('createAccount')}</h3>
                     <p className="text-sm text-muted-foreground">{t('saveDetailsDesc')}</p>
                   </div>
-                  
+
                   <div className="space-y-4">
                     {authMode === 'register' && (
                       <div className="space-y-2">
                         <Label>{t('fullName')}</Label>
-                        <Input 
+                        <Input
                           placeholder={t('yourName')}
                           value={authData.name}
                           onChange={(e) => setAuthData({...authData, name: e.target.value})}
@@ -279,7 +277,7 @@ export function CartDrawer({ storeSlug, storeId }: { storeSlug?: string, storeId
                     )}
                     <div className="space-y-2">
                       <Label>{t('phone')}</Label>
-                      <Input 
+                      <Input
                         placeholder="07XXXXXXXX"
                         value={authData.phone}
                         onChange={(e) => setAuthData({...authData, phone: e.target.value})}
@@ -287,7 +285,7 @@ export function CartDrawer({ storeSlug, storeId }: { storeSlug?: string, storeId
                     </div>
                     <div className="space-y-2">
                       <Label>{t('password')}</Label>
-                      <Input 
+                      <Input
                         type="password"
                         placeholder="••••••••"
                         value={authData.password}
@@ -298,36 +296,36 @@ export function CartDrawer({ storeSlug, storeId }: { storeSlug?: string, storeId
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label>{t('governorate')}</Label>
-                          <Input 
-                            placeholder={language === 'ar' ? 'بغداد' : 'Baghdad'}
+                          <Input
+                            placeholder={t('governoratePlaceholder')}
                             value={authData.governorate}
                             onChange={(e) => setAuthData({...authData, governorate: e.target.value})}
                           />
                         </div>
                         <div className="space-y-2">
                           <Label>{t('district')}</Label>
-                          <Input 
-                            placeholder={language === 'ar' ? 'الكرادة' : 'Karrada'}
+                          <Input
+                            placeholder={t('districtPlaceholder')}
                             value={authData.district}
                             onChange={(e) => setAuthData({...authData, district: e.target.value})}
                           />
                         </div>
                       </div>
                     )}
-                    
+
                     <Button className="w-full h-12 font-bold" onClick={handleAuth} disabled={authLoading}>
                       {authLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : (authMode === 'login' ? t('login') : t('createAccount'))}
                     </Button>
-                    
+
                     <div className="text-center">
-                      <button 
+                      <button
                         className="text-sm text-primary hover:underline"
                         onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}
                       >
                         {authMode === 'login' ? t('registerNow') : t('alreadyHaveAccount')}
                       </button>
                     </div>
-                    
+
                     <Button variant="ghost" className="w-full text-xs" onClick={() => setShowAuth(false)}>
                       {t('continueAsGuest')}
                     </Button>
@@ -337,15 +335,15 @@ export function CartDrawer({ storeSlug, storeId }: { storeSlug?: string, storeId
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label>{t('fullName' as any)} *</Label>
-                    <Input 
-                      placeholder={language === 'ar' ? 'مثال: محمد أحمد' : 'e.g. John Doe'}
+                    <Input
+                      placeholder={t('fullNamePlaceholder')}
                       value={formData.name}
                       onChange={(e) => updateField('name', e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label>{t('phone')} *</Label>
-                    <Input 
+                    <Input
                       placeholder="07XXXXXXXX"
                       value={formData.phone}
                       onChange={(e) => updateField('phone', e.target.value)}
@@ -354,16 +352,16 @@ export function CartDrawer({ storeSlug, storeId }: { storeSlug?: string, storeId
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>{t('governorate' as any)} *</Label>
-                      <Input 
-                        placeholder={language === 'ar' ? 'مثال: بغداد' : 'e.g. Baghdad'}
+                      <Input
+                        placeholder={t('governoratePlaceholder')}
                         value={formData.governorate}
                         onChange={(e) => updateField('governorate', e.target.value)}
                       />
                     </div>
                     <div className="space-y-2">
                       <Label>{t('district' as any)} *</Label>
-                      <Input 
-                        placeholder={language === 'ar' ? 'مثال: الكرادة' : 'e.g. Karrada'}
+                      <Input
+                        placeholder={t('districtPlaceholder')}
                         value={formData.district}
                         onChange={(e) => updateField('district', e.target.value)}
                       />
@@ -371,34 +369,34 @@ export function CartDrawer({ storeSlug, storeId }: { storeSlug?: string, storeId
                   </div>
                   <div className="space-y-2">
                     <Label>{t('landmark' as any)}</Label>
-                    <Input 
-                      placeholder={language === 'ar' ? 'مثال: قرب جامع ...' : 'e.g. Near ... Mosque'}
+                    <Input
+                      placeholder={t('landmarkPlaceholder')}
                       value={formData.landmark}
                       onChange={(e) => updateField('landmark', e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label>{t('additionalNotes' as any)}</Label>
-                    <Textarea 
-                      placeholder={language === 'ar' ? 'أي تعليمات خاصة للتوصيل' : 'Any special instructions'}
+                    <Textarea
+                      placeholder={t('deliveryNotesPlaceholder')}
                       value={formData.notes}
                       onChange={(e) => updateField('notes', e.target.value)}
                       className="resize-none"
                     />
                   </div>
-                  
+
                   <div className="pt-4 border-t space-y-2">
                     <div className="flex justify-between text-sm text-muted-foreground">
                       <span>{t('productsPrice')}</span>
-                      <span>{totalPrice.toLocaleString()} {currencySymbol}</span>
+                      <span>{totalPrice.toLocaleString('en-US')} {currencySymbol}</span>
                     </div>
                     <div className="flex justify-between text-sm text-muted-foreground">
                       <span>{t('deliveryFee')}</span>
-                      <span>{totalDeliveryFee === 0 ? t('free') : `${totalDeliveryFee.toLocaleString()} ${currencySymbol}`}</span>
+                      <span>{totalDeliveryFee === 0 ? t('free') : `${totalDeliveryFee.toLocaleString('en-US')} ${currencySymbol}`}</span>
                     </div>
                     <div className="flex justify-between font-bold text-lg pt-2 border-t">
                       <span>{t('totalPrice' as any)}</span>
-                      <span className="text-primary">{(totalPrice + totalDeliveryFee).toLocaleString()} {currencySymbol}</span>
+                      <span className="text-primary">{(totalPrice + totalDeliveryFee).toLocaleString('en-US')} {currencySymbol}</span>
                     </div>
                   </div>
                 </div>
@@ -429,10 +427,10 @@ export function CartDrawer({ storeSlug, storeId }: { storeSlug?: string, storeId
                       </div>
                       <div className="flex-1 space-y-1">
                         <div className="flex justify-between items-start">
-                          <p className="font-bold line-clamp-1 group-hover:text-primary transition-colors">{language === 'en' ? item.name : item.nameAr}</p>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
+                          <p className="font-bold line-clamp-1 group-hover:text-primary transition-colors">{item.name}</p>
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             className="h-7 w-7 text-destructive/50 hover:text-destructive hover:bg-destructive/10"
                             onClick={() => removeFromCart(item.id)}
                           >
@@ -449,20 +447,20 @@ export function CartDrawer({ storeSlug, storeId }: { storeSlug?: string, storeId
                           </div>
                         )}
                         <div className="flex justify-between items-center pt-2">
-                          <p className="font-bold text-primary">{item.price.toLocaleString()} {currencySymbol}</p>
+                          <p className="font-bold text-primary">{item.price.toLocaleString('en-US')} {currencySymbol}</p>
                           <div className="flex items-center border rounded-full bg-background overflow-hidden h-8">
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               className="h-full w-8 rounded-none"
                               onClick={() => updateQuantity(item.id, item.quantity - 1)}
                             >
                               <Minus className="h-3 w-3" />
                             </Button>
                             <span className="w-8 text-center text-xs font-bold">{item.quantity}</span>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               className="h-full w-8 rounded-none"
                               onClick={() => updateQuantity(item.id, item.quantity + 1)}
                             >
@@ -486,15 +484,15 @@ export function CartDrawer({ storeSlug, storeId }: { storeSlug?: string, storeId
                 <div className="space-y-1">
                   <div className="flex justify-between text-sm text-muted-foreground">
                     <span>{t('total')}</span>
-                    <span>{totalPrice.toLocaleString()} {currencySymbol}</span>
+                    <span>{totalPrice.toLocaleString('en-US')} {currencySymbol}</span>
                   </div>
                   <div className="flex justify-between text-sm text-muted-foreground">
-                    <span>{language === 'ar' ? 'التوصيل' : 'Delivery'}</span>
-                    <span>{totalDeliveryFee === 0 ? (language === 'ar' ? 'مجاني' : 'Free') : `${totalDeliveryFee.toLocaleString()} ${currencySymbol}`}</span>
+                    <span>{t('deliveryFee')}</span>
+                    <span>{totalDeliveryFee === 0 ? t('free') : `${totalDeliveryFee.toLocaleString('en-US')} ${currencySymbol}`}</span>
                   </div>
                   <div className="flex justify-between font-bold text-xl pt-1">
                     <span>{t('total')}</span>
-                    <span className="text-primary">{(totalPrice + totalDeliveryFee).toLocaleString()} {currencySymbol}</span>
+                    <span className="text-primary">{(totalPrice + totalDeliveryFee).toLocaleString('en-US')} {currencySymbol}</span>
                   </div>
                 </div>
                 <Button className="w-full h-14 text-lg font-bold shadow-lg shadow-primary/20" onClick={() => setIsCheckingOut(true)}>
@@ -503,16 +501,16 @@ export function CartDrawer({ storeSlug, storeId }: { storeSlug?: string, storeId
               </div>
             ) : (
               <div className="flex gap-3">
-                <Button 
-                  variant="outline" 
-                  className="flex-1 h-12 font-bold" 
+                <Button
+                  variant="outline"
+                  className="flex-1 h-12 font-bold"
                   onClick={() => setIsCheckingOut(false)}
                   disabled={isSubmitting}
                 >
                   {t('back' as any)}
                 </Button>
-                <Button 
-                  className="flex-[2] h-12 font-bold" 
+                <Button
+                  className="flex-[2] h-12 font-bold"
                   onClick={handleCheckout}
                   disabled={isSubmitting}
                 >

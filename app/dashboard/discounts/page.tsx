@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { useAuth } from '@/lib/auth-context'
 import { useData } from '@/lib/data-context'
-import { DashboardHeader } from '@/components/dashboard/header'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -34,19 +33,32 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Percent, Store as StoreIcon, Package, Trash2, Edit2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { AccessRestricted } from '@/components/dashboard/access-restricted'
 
 export default function DiscountsPage() {
   const { user, language } = useAuth()
-  const { stores, products, updateStore, updateProduct } = useData()
+  const { stores, products, updateStore, updateProduct, selectedStoreId, getStoresByUserId } = useData()
   const [storeDialog, setStoreDialog] = useState(false)
   const [productDialog, setProductDialog] = useState(false)
-  const [editingStore, setEditingStore] = useState<string>('')
+  const [editingStore, setEditingStore] = useState<string>(selectedStoreId || '')
   const [editingProduct, setEditingProduct] = useState<string>('')
   const [discountValue, setDiscountValue] = useState<string>('')
   const [discountEnd, setDiscountEnd] = useState<string>('')
 
   const isAdmin = user?.role === 'admin'
-  const userStores = isAdmin ? stores : stores.filter((s) => s.userId === user?.id)
+
+  if (user?.role === 'employee') {
+    return (
+      <AccessRestricted description="Discount management is restricted to store owners and platform admins." />
+    )
+  }
+
+  let userStores = isAdmin ? stores : getStoresByUserId(user?.id || '')
+
+  if (selectedStoreId) {
+    userStores = userStores.filter(s => s.id === selectedStoreId)
+  }
+
   const storeIds = userStores.map((s) => s.id)
   const userProducts = products.filter((p) => storeIds.includes(p.storeId))
 
@@ -118,43 +130,58 @@ export default function DiscountsPage() {
   }
 
   return (
-    <div className="min-h-screen">
-      <DashboardHeader title={language === 'ar' ? 'الخصومات' : 'Discounts'} />
-
-      <div className="p-4 md:p-6 space-y-6">
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">
-                {language === 'ar' ? 'خصومات المتاجر النشطة' : 'Active Store Discounts'}
-              </CardTitle>
-              <StoreIcon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{activeStoreDiscounts.length}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">
-                {language === 'ar' ? 'خصومات المنتجات النشطة' : 'Active Product Discounts'}
-              </CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{activeProductDiscounts.length}</div>
-            </CardContent>
-          </Card>
+    <div className="space-y-12 max-w-[1600px] mx-auto pb-20">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 border-b border-border pb-8">
+        <div className="space-y-1">
+          <h1 className="text-4xl sm:text-5xl font-black tracking-tighter text-foreground font-heading">
+            {language === 'ar' ? 'الخصومات' : 'Discounts'}
+          </h1>
+          <p className="text-muted-foreground text-sm sm:text-base font-medium max-w-2xl leading-relaxed">
+            Manage promotional campaigns, store-wide sales, and targeted product markdowns.
+            Boost conversions with time-sensitive offers.
+          </p>
         </div>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2 animate-in fade-in slide-in-from-top-4 duration-700">
+        <Card className="border-none shadow-xl shadow-primary/5 bg-card/30 backdrop-blur-sm rounded-[2rem] overflow-hidden group hover:scale-[1.03] transition-all duration-500">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 p-8">
+            <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">
+              {language === 'ar' ? 'خصومات المتاجر النشطة' : 'Active Store Discounts'}
+            </CardTitle>
+            <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center transition-transform duration-500 group-hover:scale-110">
+              <StoreIcon className="h-5 w-5" />
+            </div>
+          </CardHeader>
+          <CardContent className="px-8 pb-8">
+            <div className="text-4xl font-black tracking-tighter">{activeStoreDiscounts.length}</div>
+            <p className="text-xs font-medium text-muted-foreground mt-2 opacity-60">Global campaigns</p>
+          </CardContent>
+        </Card>
+        <Card className="border-none shadow-xl shadow-primary/5 bg-card/30 backdrop-blur-sm rounded-[2rem] overflow-hidden group hover:scale-[1.03] transition-all duration-500">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 p-8">
+            <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">
+              {language === 'ar' ? 'خصومات المنتجات النشطة' : 'Active Product Discounts'}
+            </CardTitle>
+            <div className="h-10 w-10 rounded-xl bg-accent/10 text-accent flex items-center justify-center transition-transform duration-500 group-hover:scale-110">
+              <Package className="h-5 w-5" />
+            </div>
+          </CardHeader>
+          <CardContent className="px-8 pb-8">
+            <div className="text-4xl font-black tracking-tighter">{activeProductDiscounts.length}</div>
+            <p className="text-xs font-medium text-muted-foreground mt-2 opacity-60">Specific items</p>
+          </CardContent>
+        </Card>
+      </div>
 
         {/* Store-Wide Discounts */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
+        <Card className="border-none shadow-xl shadow-primary/5 bg-card/50 backdrop-blur-sm rounded-[2rem] overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
+          <CardHeader className="flex flex-row items-center justify-between p-8 pb-4">
             <div>
-              <CardTitle>
+              <CardTitle className="text-2xl font-black tracking-tight">
                 {language === 'ar' ? 'خصومات على مستوى المتجر' : 'Store-Wide Discounts'}
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-sm font-medium">
                 {language === 'ar'
                   ? 'خصم مطبق على جميع المنتجات في المتجر'
                   : 'Discount applied to all products in a store'}
@@ -183,7 +210,7 @@ export default function DiscountsPage() {
                       <SelectContent>
                         {userStores.filter(s => s && s.id).map((s) => (
                           <SelectItem key={s.id} value={s.id}>
-                            {language === 'ar' ? s.nameAr || s.name : s.name}
+                            {s.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -245,7 +272,7 @@ export default function DiscountsPage() {
                   activeStoreDiscounts.map((s) => (
                     <TableRow key={s.id}>
                       <TableCell className="font-medium">
-                        {language === 'ar' ? s.nameAr : s.name}
+                        {s.name}
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary">{s.globalDiscount}%</Badge>
@@ -275,13 +302,13 @@ export default function DiscountsPage() {
         </Card>
 
         {/* Product-Specific Discounts */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
+        <Card className="border-none shadow-xl shadow-primary/5 bg-card/50 backdrop-blur-sm rounded-[2rem] overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
+          <CardHeader className="flex flex-row items-center justify-between p-8 pb-4">
             <div>
-              <CardTitle>
+              <CardTitle className="text-2xl font-black tracking-tight">
                 {language === 'ar' ? 'خصومات المنتجات' : 'Product Discounts'}
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-sm font-medium">
                 {language === 'ar'
                   ? 'خصم مطبق على منتج محدد'
                   : 'Discount applied to a specific product'}
@@ -312,7 +339,7 @@ export default function DiscountsPage() {
                       <SelectContent>
                         {userProducts.filter(p => p && p.id).map((p) => (
                           <SelectItem key={p.id} value={p.id}>
-                            {language === 'ar' ? p.titleAr || p.title : p.title}
+                            {p.title}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -378,7 +405,7 @@ export default function DiscountsPage() {
                     return (
                       <TableRow key={p.id}>
                         <TableCell className="font-medium">
-                          {language === 'ar' ? p.titleAr : p.title}
+                          {p.title}
                         </TableCell>
                         <TableCell className="text-muted-foreground line-through">
                           ${p.price.toFixed(2)}
@@ -412,6 +439,5 @@ export default function DiscountsPage() {
           </CardContent>
         </Card>
       </div>
-    </div>
   )
 }

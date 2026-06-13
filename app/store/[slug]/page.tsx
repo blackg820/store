@@ -1,44 +1,20 @@
 import { notFound } from 'next/navigation'
-import { StorefrontClient } from '@/components/store/storefront-client'
-import { translations } from '@/lib/types'
 import { Metadata } from 'next'
-
-// Fetch site name
-async function getSiteName() {
-  return 'Storify'
-}
-
-// Fetch store and products from Laravel API
-async function getStoreData(slug: string) {
-  try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/v1/public/store/${slug}`, {
-      next: { revalidate: 3600 } // Cache for 1 hour
-    })
-    
-    if (!res.ok) return null
-    const json = await res.json()
-    if (!json.success) return null
-    
-    return json.data
-  } catch (error) {
-    console.error('[Storefront] Fetch error:', error)
-    return null
-  }
-}
+import { StorefrontClient } from '@/components/store/storefront-client'
+import { canonicalStoreUrl, getStorefrontPageContext, isReservedStorefrontHost, normalizeInitialLanguage } from './storefront-data'
 
 export async function generateMetadata(props: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const params = await props.params
-  const [data, siteName] = await Promise.all([
-    getStoreData(params.slug),
-    getSiteName()
-  ])
-  
-  if (!data) return { title: 'Store Not Found' }
-  
-  const title = `${data.store.nameAr || data.store.name} | ${siteName}`
-  const description = data.store.descriptionAr || data.store.description || `Welcome to ${data.store.nameAr || data.store.name}`
-  const url = `${process.env.NEXT_PUBLIC_APP_URL || ''}/store/${params.slug}`
-  
+  const { data, settings, tenant } = await getStorefrontPageContext(params.slug)
+
+  if (!data || isReservedStorefrontHost(tenant.host)) return { title: 'Store Not Found' }
+  const siteName = settings.site_name
+
+  const title = `${siteName} - ${data.store.name}`
+  const description = data.store.description || `Welcome to ${data.store.name}`
+  const url = canonicalStoreUrl(tenant, data.store.slug || params.slug)
+  const imageUrl = data.store.coverUrl || data.store.logoUrl || undefined
+
   return {
     title: title,
     description: description,
@@ -51,11 +27,11 @@ export async function generateMetadata(props: { params: Promise<{ slug: string }
       description: description,
       url: url,
       siteName: siteName,
-      images: data.store.logoUrl ? [
+      images: imageUrl ? [
         {
-          url: data.store.logoUrl,
-          width: 800,
-          height: 800,
+          url: imageUrl,
+          width: 1200,
+          height: 630,
           alt: data.store.name,
         }
       ] : [],
@@ -66,26 +42,28 @@ export async function generateMetadata(props: { params: Promise<{ slug: string }
       card: 'summary_large_image',
       title: title,
       description: description,
-      images: data.store.logoUrl ? [data.store.logoUrl] : [],
+      images: imageUrl ? [imageUrl] : [],
     }
   }
 }
 
 export default async function PublicStorePage(props: { params: Promise<{ slug: string }> }) {
   const params = await props.params
-  const [data, siteName] = await Promise.all([
-    getStoreData(params.slug),
-    getSiteName()
-  ])
+  const { data, settings, tenant } = await getStorefrontPageContext(params.slug)
+  const siteName = settings.site_name
 
-  if (!data) notFound()
+  if (!data || isReservedStorefrontHost(tenant.host)) notFound()
 
   return (
-    <StorefrontClient 
-      store={data.store as any} 
-      products={data.products as any} 
-      siteName={siteName} 
-      initialLanguage={data.store.defaultLanguage as any}
+    <StorefrontClient
+      store={data.store}
+      products={data.products}
+      categories={data.categories}
+      productTypes={data.productTypes}
+      sections={data.sections}
+      siteName={siteName}
+      saasContactWhatsapp={settings.saas_contact_whatsapp}
+      initialLanguage={normalizeInitialLanguage(data.store.defaultLanguage)}
     />
   )
 }

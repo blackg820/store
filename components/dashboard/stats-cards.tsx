@@ -1,15 +1,16 @@
 'use client'
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { useAuth } from '@/lib/auth-context'
+import { Card, CardContent } from '@/components/ui/card'
 import { useData } from '@/lib/data-context'
 import { useTranslations } from '@/hooks/use-translations'
-import { ShoppingCart, Store, DollarSign, Users, TrendingUp, TrendingDown, Package, AlertTriangle, Briefcase } from 'lucide-react'
+import { ShoppingCart, Store, DollarSign, Package, AlertTriangle, Briefcase, CheckCircle2, Layers } from 'lucide-react'
 import { cn } from '@/lib/utils'
+
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface StatCardProps {
   title: string
-  value: string | number
+  value: string | number | React.ReactNode
   icon: React.ElementType
   trend?: {
     value: number
@@ -19,48 +20,41 @@ interface StatCardProps {
 }
 
 function StatCard({ title, value, icon: Icon, trend, variant = 'default' }: StatCardProps) {
-  const variantStyles = {
-    default: 'from-primary/20 to-primary/5 text-primary border-primary/20',
-    success: 'from-success/20 to-success/5 text-success border-success/20',
-    warning: 'from-warning/20 to-warning/5 text-warning border-warning/20',
-    danger: 'from-destructive/20 to-destructive/5 text-destructive border-destructive/20',
-    info: 'from-primary/20 to-accent/5 text-accent border-accent/20',
+  const variantStyles: Record<NonNullable<StatCardProps['variant']>, string> = {
+    default: 'text-primary bg-primary/10 border-primary/20',
+    success: 'text-success bg-success/10 border-success/20',
+    warning: 'text-warning bg-warning/10 border-warning/20',
+    danger: 'text-destructive bg-destructive/10 border-destructive/20',
+    info: 'text-accent bg-accent/10 border-accent/20',
   }
 
   return (
     <Card className={cn(
-      "relative overflow-hidden group transition-all duration-500 glass-card border-white/5 hover:border-white/20 hover:scale-[1.02] hover:shadow-2xl",
+      "group overflow-hidden border-border bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md",
     )}>
-      {/* Dynamic Background Glow */}
-      <div className={cn(
-        "absolute -right-8 -top-8 h-32 w-32 rounded-full blur-3xl opacity-10 transition-opacity group-hover:opacity-30 bg-gradient-to-br",
-        variantStyles[variant]
-      )} />
-      
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between mb-4">
+      <CardContent className="p-5 sm:p-6">
+        <div className="mb-5 flex items-center justify-between">
           <div className={cn(
-            'p-2.5 rounded-xl transition-all duration-500 group-hover:scale-110 shadow-sm border border-white/5', 
-            variantStyles[variant], 
-            "bg-white/5"
+            'flex h-10 w-10 items-center justify-center rounded-lg border transition-colors duration-200',
+            variantStyles[variant]
           )}>
             <Icon className="h-5 w-5" />
           </div>
           {trend && (
             <div className={cn(
-              'text-[10px] font-black flex items-center gap-1 px-2 py-0.5 rounded-full uppercase tracking-tighter border border-white/5',
+              'flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide',
               trend.isPositive ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'
             )}>
               {trend.isPositive ? '+' : '-'}{trend.value}%
             </div>
           )}
         </div>
-        
-        <div className="space-y-1">
-          <p className="text-xs font-black text-muted-foreground uppercase tracking-widest opacity-70">
+
+        <div className="space-y-1.5">
+          <p className="text-xs font-semibold text-muted-foreground">
             {title}
           </p>
-          <div className="text-3xl font-black tracking-tighter text-foreground">
+          <div className="text-2xl font-semibold tracking-tight text-foreground tabular-nums sm:text-3xl">
             {value}
           </div>
         </div>
@@ -70,50 +64,56 @@ function StatCard({ title, value, icon: Icon, trend, variant = 'default' }: Stat
 }
 
 export function AdminStatsCards() {
-  const { t, language } = useTranslations()
-  const { orders, stores, buyers, products, isDataLoading } = useData()
-  
+  const { t } = useTranslations()
+  const { orders: allOrders, stores, buyers: allBuyers, products, isDataLoading, selectedStoreId } = useData()
+
+  const orders = selectedStoreId
+    ? allOrders.filter(o => o.storeId === selectedStoreId)
+    : allOrders
+
+  const buyers = selectedStoreId
+    ? allBuyers.filter(b => allOrders.some(o => o.buyerId === b.id && o.storeId === selectedStoreId))
+    : allBuyers
+
   const totalRevenue = orders
     .filter(o => o.status === 'delivered')
     .reduce((sum, o) => sum + (o.totalAmount || 0), 0)
 
+  const productCostById = new Map(products.map(product => [product.id, product.costPrice || 0]))
   const totalProfit = orders
     .filter(o => o.status === 'delivered')
     .reduce((sum, o) => {
       const orderCost = (o.items || []).reduce((itemSum, item) => {
-        const product = products.find(p => p.id === item.productId)
-        return itemSum + ((product?.costPrice || 0) * item.quantity)
+        return itemSum + ((productCostById.get(item.productId) || 0) * item.quantity)
       }, 0)
       return sum + ((o.totalAmount || 0) - orderCost)
     }, 0)
-  
-  const activeStores = (stores || []).filter(s => s.isActive).length
+
   const highRiskBuyers = (buyers || []).filter(b => b.risk === 'high').length
-  const currency = language === 'en' ? 'IQD' : 'د.ع'
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <StatCard
         title={t('totalOrders')}
-        value={isDataLoading ? '...' : orders.length}
+        value={isDataLoading ? <Skeleton className="h-9 w-16" /> : orders.length}
         icon={ShoppingCart}
         variant="default"
       />
       <StatCard
         title={t('totalRevenue')}
-        value={isDataLoading ? '...' : `${totalRevenue.toLocaleString()} ${currency}`}
+        value={isDataLoading ? <Skeleton className="h-9 w-32" /> : `${totalRevenue.toLocaleString('en-US')} ${t('currency')}`}
         icon={DollarSign}
         variant="success"
       />
       <StatCard
-        title={t('totalProfit' as any) || 'Total Profit'}
-        value={isDataLoading ? '...' : `${totalProfit.toLocaleString()} ${currency}`}
+        title={t('totalProfit')}
+        value={isDataLoading ? <Skeleton className="h-9 w-32" /> : `${totalProfit.toLocaleString('en-US')} ${t('currency')}`}
         icon={Briefcase}
         variant="info"
       />
       <StatCard
-        title="High Risk Buyers"
-        value={isDataLoading ? '...' : highRiskBuyers}
+        title={t('highRiskBuyers')}
+        value={isDataLoading ? <Skeleton className="h-9 w-16" /> : highRiskBuyers}
         icon={AlertTriangle}
         variant={highRiskBuyers > 0 ? 'warning' : 'default'}
       />
@@ -122,55 +122,110 @@ export function AdminStatsCards() {
 }
 
 export function StoreOwnerStatsCards({ userId }: { userId: string }) {
-  const { t, language } = useTranslations()
-  const { getStoresByUserId, orders, products, isDataLoading } = useData()
-  
+  const { t } = useTranslations()
+  const { getStoresByUserId, orders: allOrders, products: allProducts, isDataLoading, selectedStoreId } = useData()
+
   const userStores = getStoresByUserId(userId)
   const storeIds = userStores.map(s => s.id)
-  
-  const userOrders = orders.filter(o => storeIds.includes(o.storeId))
-  const userProducts = products.filter(p => storeIds.includes(p.storeId))
-  
+
+  let orders = allOrders.filter(o => storeIds.includes(o.storeId))
+  let products = allProducts.filter(p => storeIds.includes(p.storeId))
+
+  if (selectedStoreId) {
+    orders = orders.filter(o => o.storeId === selectedStoreId)
+    products = products.filter(p => p.storeId === selectedStoreId)
+  }
+
+  const userOrders = orders
+  const userProducts = products
+
   const totalRevenue = userOrders
     .filter(o => o.status === 'delivered')
     .reduce((sum, o) => sum + (o.totalAmount || 0), 0)
 
+  const productCostById = new Map(products.map(product => [product.id, product.costPrice || 0]))
   const totalProfit = userOrders
     .filter(o => o.status === 'delivered')
     .reduce((sum, o) => {
       const orderCost = (o.items || []).reduce((itemSum, item) => {
-        const product = products.find(p => p.id === item.productId)
-        return itemSum + ((product?.costPrice || 0) * item.quantity)
+        return itemSum + ((productCostById.get(item.productId) || 0) * item.quantity)
       }, 0)
       return sum + ((o.totalAmount || 0) - orderCost)
     }, 0)
-  
-  const currency = language === 'en' ? 'IQD' : 'د.ع'
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <StatCard
         title={t('totalOrders')}
-        value={isDataLoading ? '...' : userOrders.length}
+        value={isDataLoading ? <Skeleton className="h-9 w-16" /> : userOrders.length}
         icon={ShoppingCart}
         variant="default"
       />
       <StatCard
         title={t('totalRevenue')}
-        value={isDataLoading ? '...' : `${totalRevenue.toLocaleString()} ${currency}`}
+        value={isDataLoading ? <Skeleton className="h-9 w-32" /> : `${totalRevenue.toLocaleString('en-US')} ${t('currency')}`}
         icon={DollarSign}
         variant="success"
       />
       <StatCard
-        title={t('totalProfit' as any) || 'Total Profit'}
-        value={isDataLoading ? '...' : `${totalProfit.toLocaleString()} ${currency}`}
+        title={t('totalProfit')}
+        value={isDataLoading ? <Skeleton className="h-9 w-32" /> : `${totalProfit.toLocaleString('en-US')} ${t('currency')}`}
         icon={Briefcase}
         variant="info"
       />
       <StatCard
         title={t('products')}
-        value={isDataLoading ? '...' : userProducts.length}
+        value={isDataLoading ? <Skeleton className="h-9 w-16" /> : userProducts.length}
         icon={Package}
+      />
+    </div>
+  )
+}
+
+export function EmployeeStatsCards({ userId }: { userId: string }) {
+  const { t } = useTranslations()
+  const { getStoresByUserId, products: allProducts, productTypes, categories, isDataLoading, selectedStoreId } = useData()
+
+  const userStores = getStoresByUserId(userId)
+  const storeIds = userStores.map(s => s.id)
+
+  let products = allProducts.filter(p => storeIds.includes(p.storeId))
+  let scopedProductTypes = productTypes.filter(type => !type.storeId || storeIds.includes(type.storeId))
+  let scopedCategories = categories.filter(category => !category.storeId || storeIds.includes(category.storeId))
+
+  if (selectedStoreId) {
+    products = products.filter(p => p.storeId === selectedStoreId)
+    scopedProductTypes = scopedProductTypes.filter(type => !type.storeId || type.storeId === selectedStoreId)
+    scopedCategories = scopedCategories.filter(category => !category.storeId || category.storeId === selectedStoreId)
+  }
+
+  const activeProducts = products.filter(product => product.isActive).length
+
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <StatCard
+        title={t('stores')}
+        value={isDataLoading ? <Skeleton className="h-9 w-16" /> : userStores.length}
+        icon={Store}
+        variant="default"
+      />
+      <StatCard
+        title={t('products')}
+        value={isDataLoading ? <Skeleton className="h-9 w-16" /> : products.length}
+        icon={Package}
+        variant="info"
+      />
+      <StatCard
+        title={t('productSections')}
+        value={isDataLoading ? <Skeleton className="h-9 w-16" /> : scopedProductTypes.length + scopedCategories.length}
+        icon={Layers}
+        variant="default"
+      />
+      <StatCard
+        title={t('active')}
+        value={isDataLoading ? <Skeleton className="h-9 w-16" /> : activeProducts}
+        icon={CheckCircle2}
+        variant="success"
       />
     </div>
   )

@@ -1,0 +1,146 @@
+{
+  "admin": "الإدارة",
+  "analytics": "التحليلات",
+  "categories": "الأقسام",
+  "customerNotifications": "إشعارات العملاء",
+  "customers": "العملاء",
+  "dashboard": "لوحة التحكم",
+  "employees": "الموظفون",
+  "login": "تسجيل الدخول",
+  "logout": "تسجيل الخروج",
+  "notifications": "الإشعارات",
+  "orders": "الطلبات",
+  "overview": "النظرة العامة",
+  "products": "المنتجات",
+  "settings": "الإعدادات",
+  "storeNotFound": "المتجر غير موجود",
+  "stores": "المتاجر",
+  "subscriptions": "الاشتراكات",
+  "storefront": {
+    "common": {
+      "allProducts": "كل المنتجات",
+      "available": "متوفر",
+      "backToCategories": "العودة إلى الأقسام",
+      "backToProducts": "العودة إلى المنتجات",
+      "continueShopping": "متابعة التسوق",
+      "items": "عناصر",
+      "off": "خصم",
+      "storeHome": "صفحة المتجر",
+      "unavailable": "غير متوفر",
+      "viewAll": "عرض الكل",
+      "whatsapp": "واتساب"
+    },
+    "meta": {
+      "browseCategoryProducts": "تصفح منتجات هذا القسم.",
+      "browseProducts": "تصفح كل منتجات المتجر.",
+      "browseStoreCategories": "تصفح أقسام المتجر.",
+      "defaultDescription": "تصفح واجهة متجر دوكاني.",
+      "productDescription": "تفاصيل منتج المتجر.",
+      "productTitle": "منتج",
+      "categoryTitle": "قسم",
+      "storeNotFoundTitle": "المتجر غير موجود"
+    },
+    "header": {
+      "cart": "السلة",
+      "languageSelector": "اختيار اللغة",
+      "onlineStorefront": "واجهة متجر إلكترونية",
+      "storeLogo": "شعار المتجر",
+      "storeNavigation": "تنقل المتجر"
+    },
+    "language": {
+      "en": "الإنجليزية",
+      "ar": "العربية",
+      "ku": "الكردية"
+    },
+    "hero": {
+      "coverAlt": "غلاف {store}",
+      "logoAlt": "شعار {store}",
+      "open": "مفتوح للطلبات",
+      "closed": "مغلق حالياً",
+      "defaultDescription": "تصفح المنتجات واطلب من هذا المتجر.",
+      "statsLabel": "إحصاءات المتجر",
+      "products": "المنتجات",
+      "categories": "الأقسام",
+      "daysDelivery": "أيام التوصيل"
+    },
+    "home": {
+      "loading": "جار تحميل المتجر...",
+      "categoryEyebrow": "تسوق حسب القسم",
+      "categoryTitle": "استكشف الأقسام",
+      "featuredEyebrow": "منتجات مميزة",
+      "featuredTitle": "اختيارات من {store}",
+      "readyEyebrow": "جاهز للطلب",
+      "checkoutAvailable": "الدفع متاح",
+      "checkoutPaused": "الدفع متوقف مؤقتاً",
+      "whatsappHelp": "هل لديك سؤال؟ تواصل مع المتجر عبر واتساب.",
+      "orderingUpdates": "تصفح المنتجات وراجع المتجر لاحقاً لتحديثات الطلب."
+    },
+    "products": {
+      "loading": "جار تحميل المنتجات...",
+      "unavailable": "المنتجات غير متاحة",
+      "title": "المنتجات",
+      "count": "{count} منتج عام متاح.",
+      "emptyTitle": "لا توجد منتجات",
+      "emptyMessage": "لا يملك هذا المتجر منتجات عامة نشطة حالياً."
+    },
+    "categories": {
+      "loading": "جار تحميل الأقسام...",
+      "unavailable": "الأقسام غير متاحة",
+      "title": "الأقسام",
+      "browseStore": "تصفح {store}",
+      "count": "{count} قسم متاح.",
+      "emptyTitle": "لا توجد أقسام",
+      "emptyMessage": "لم ينشر هذا المتجر أقساماً بعد."
+    },
+    "category": {
+      "loading": "جار تحميل القسم...",
+      "unavailable": "القسم غير متاح",
+      "notFoundTitle": "القسم غير موجود",
+      "notFoundMessage": "هذا القسم غير متاح لواجهة المتجر الحالية.",
+      "eyebrow": "القسم",
+      "count": "{count} منتج في هذا القسم.",
+      "emptyTitle": "لا توجد منتجات هنا",
+      "emptyMessage": "لا يحتوي هذا القسم على منتجات عامة نشطة حالياً."
+    },
+    "product": {
+      "loading": "جار تحميل المنتج...",
+      "unavailable": "المنتج غير متاح",
+      "notFoundTitle": "المنتج غير موجود",
+      "notFoundMessage": "هذا المنتج غير متاح لواجهة المتجر الحالية.",
+      "relatedEyebrow": "منتجات مرتبطة",
+      "relatedTitle": "المزيد من هذا القسم",
+      "fallbackLetter": "م"
+    },
+    "empty": {
+      "productsTitle": "لا توجد منتجات بعد",
+      "productsMessage": "لم ينشر هذا المتجر منتجات عامة بعد."
+    },
+    "errors": {
+      "genericTitle": "حدث خطأ",
+      "genericMessage": "حدث خطأ ما.",
+      "appTitle": "خطأ في التطبيق",
+      "returnHome": "العودة للرئيسية",
+      "storeNotFoundTitle": "المتجر غير موجود",
+      "storeNotFoundMessage": "تعذر تحديد واجهة المتجر من هذا النطاق.",
+      "hostNotMatchedEyebrow": "المتجر غير موجود",
+      "hostNotMatchedTitle": "لا توجد واجهة متجر لهذا النطاق",
+      "hostNotMatchedMessage": "يجب أن تمر النطاقات المخصصة والفرعية عبر Laravel قبل عرض واجهة المتجر."
+    },
+    "loading": {
+      "default": "جار التحميل..."
+    },
+    "notifications": {
+      "subscribe": "اشترك في التحديثات",
+      "subscribed": "تم الاشتراك",
+      "description": "احصل على إشعار عند إضافة منتجات أو تحديث الطلبات."
+    },
+    "checkout": {
+      "title": "الدفع",
+      "name": "الاسم",
+      "phone": "الهاتف",
+      "address": "العنوان",
+      "notes": "ملاحظات",
+      "submit": "إرسال الطلب"
+    }
+  }
+}

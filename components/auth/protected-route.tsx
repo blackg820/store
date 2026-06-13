@@ -17,7 +17,7 @@ export function ProtectedRoute({ children, adminOnly = false }: ProtectedRoutePr
   useEffect(() => {
     if (isLoading) return
     if (!user) {
-      router.replace('/')
+      router.replace('/login')
       return
     }
     if (adminOnly && user.role !== 'admin') {

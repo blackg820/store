@@ -1,0 +1,146 @@
+{
+  "admin": "بەڕێوەبەرایەتی",
+  "analytics": "شیکاری",
+  "categories": "هاوپۆلەکان",
+  "customerNotifications": "ئاگادارکردنەوەی کڕیاران",
+  "customers": "کڕیاران",
+  "dashboard": "داشبۆرد",
+  "employees": "کارمەندان",
+  "login": "چوونەژوورەوە",
+  "logout": "چوونەدەرەوە",
+  "notifications": "ئاگادارکردنەوەکان",
+  "orders": "داواکارییەکان",
+  "overview": "گشتی",
+  "products": "بەرهەمەکان",
+  "settings": "ڕێکخستنەکان",
+  "storeNotFound": "فرۆشگا نەدۆزرایەوە",
+  "stores": "فرۆشگاکان",
+  "subscriptions": "بەشداربوونەکان",
+  "storefront": {
+    "common": {
+      "allProducts": "هەموو بەرهەمەکان",
+      "available": "بەردەستە",
+      "backToCategories": "گەڕانەوە بۆ هاوپۆلەکان",
+      "backToProducts": "گەڕانەوە بۆ بەرهەمەکان",
+      "continueShopping": "بەردەوامبوون لە کڕین",
+      "items": "دانە",
+      "off": "داشکاندن",
+      "storeHome": "ماڵەوەی فرۆشگا",
+      "unavailable": "بەردەست نییە",
+      "viewAll": "هەمووی ببینە",
+      "whatsapp": "واتساپ"
+    },
+    "meta": {
+      "browseCategoryProducts": "بەرهەمەکانی ئەم هاوپۆلە ببینە.",
+      "browseProducts": "هەموو بەرهەمەکانی فرۆشگا ببینە.",
+      "browseStoreCategories": "هاوپۆلەکانی فرۆشگا ببینە.",
+      "defaultDescription": "سەیری فرۆشگای دوکانی بکە.",
+      "productDescription": "وردەکاری بەرهەمی فرۆشگا.",
+      "productTitle": "بەرهەم",
+      "categoryTitle": "هاوپۆل",
+      "storeNotFoundTitle": "فرۆشگا نەدۆزرایەوە"
+    },
+    "header": {
+      "cart": "سەبەتە",
+      "languageSelector": "هەڵبژاردنی زمان",
+      "onlineStorefront": "ڕووکاری فرۆشگای ئۆنلاین",
+      "storeLogo": "لۆگۆی فرۆشگا",
+      "storeNavigation": "ڕێنیشاندەری فرۆشگا"
+    },
+    "language": {
+      "en": "ئینگلیزی",
+      "ar": "عەرەبی",
+      "ku": "کوردی"
+    },
+    "hero": {
+      "coverAlt": "کاڤەری {store}",
+      "logoAlt": "لۆگۆی {store}",
+      "open": "کراوەیە بۆ داواکاری",
+      "closed": "ئێستا داخراوە",
+      "defaultDescription": "بەرهەمەکان ببینە و لەم فرۆشگایە داوا بکە.",
+      "statsLabel": "ئاماری فرۆشگا",
+      "products": "بەرهەمەکان",
+      "categories": "هاوپۆلەکان",
+      "daysDelivery": "ڕۆژی گەیاندن"
+    },
+    "home": {
+      "loading": "فرۆشگا بار دەکرێت...",
+      "categoryEyebrow": "کڕین بە پێی هاوپۆل",
+      "categoryTitle": "ڕەفەکان بگەڕێ",
+      "featuredEyebrow": "بەرهەمە تایبەتەکان",
+      "featuredTitle": "هەڵبژاردەکان لە {store}",
+      "readyEyebrow": "ئامادەیە بۆ داواکاری",
+      "checkoutAvailable": "پارەدان بەردەستە",
+      "checkoutPaused": "پارەدان کاتییەک ڕاگیراوە",
+      "whatsappHelp": "پرسیارت هەیە؟ لە واتساپ پەیوەندی بە فرۆشگاوە بکە.",
+      "orderingUpdates": "بەرهەمەکان ببینە و دواتر بۆ نوێکاری داواکاری بگەڕێوە."
+    },
+    "products": {
+      "loading": "بەرهەمەکان بار دەکرێن...",
+      "unavailable": "بەرهەمەکان بەردەست نین",
+      "title": "بەرهەمەکان",
+      "count": "{count} بەرهەمی گشتی بەردەستە.",
+      "emptyTitle": "هیچ بەرهەمێک نییە",
+      "emptyMessage": "ئەم فرۆشگایە ئێستا بەرهەمی گشتی چالاکی نییە."
+    },
+    "categories": {
+      "loading": "هاوپۆلەکان بار دەکرێن...",
+      "unavailable": "هاوپۆلەکان بەردەست نین",
+      "title": "هاوپۆلەکان",
+      "browseStore": "سەیری {store} بکە",
+      "count": "{count} هاوپۆل بەردەستە.",
+      "emptyTitle": "هیچ هاوپۆلێک نییە",
+      "emptyMessage": "ئەم فرۆشگایە هێشتا هاوپۆلی بڵاو نەکردووەتەوە."
+    },
+    "category": {
+      "loading": "هاوپۆل بار دەکرێت...",
+      "unavailable": "هاوپۆل بەردەست نییە",
+      "notFoundTitle": "هاوپۆل نەدۆزرایەوە",
+      "notFoundMessage": "ئەم هاوپۆلە بۆ ڕووکاری ئێستای فرۆشگا بەردەست نییە.",
+      "eyebrow": "هاوپۆل",
+      "count": "{count} بەرهەم لەم هاوپۆلەدا هەیە.",
+      "emptyTitle": "لێرە هیچ بەرهەمێک نییە",
+      "emptyMessage": "ئەم هاوپۆلە ئێستا بەرهەمی گشتی چالاکی نییە."
+    },
+    "product": {
+      "loading": "بەرهەم بار دەکرێت...",
+      "unavailable": "بەرهەم بەردەست نییە",
+      "notFoundTitle": "بەرهەم نەدۆزرایەوە",
+      "notFoundMessage": "ئەم بەرهەمە بۆ ڕووکاری ئێستای فرۆشگا بەردەست نییە.",
+      "relatedEyebrow": "پەیوەندیدار",
+      "relatedTitle": "زیاتر لەم هاوپۆلە",
+      "fallbackLetter": "ب"
+    },
+    "empty": {
+      "productsTitle": "هێشتا هیچ بەرهەمێک نییە",
+      "productsMessage": "ئەم فرۆشگایە هێشتا بەرهەمی گشتی بڵاو نەکردووەتەوە."
+    },
+    "errors": {
+      "genericTitle": "هەڵەیەک ڕوویدا",
+      "genericMessage": "شتێک بە هەڵە چوو.",
+      "appTitle": "هەڵەی ئەپ",
+      "returnHome": "گەڕانەوە بۆ ماڵەوە",
+      "storeNotFoundTitle": "فرۆشگا نەدۆزرایەوە",
+      "storeNotFoundMessage": "نەتوانرا ڕووکاری فرۆشگا لەم هۆستەوە بدۆزرێتەوە.",
+      "hostNotMatchedEyebrow": "فرۆشگا نەدۆزرایەوە",
+      "hostNotMatchedTitle": "هیچ ڕووکاری فرۆشگایەک بۆ ئەم هۆستە نییە",
+      "hostNotMatchedMessage": "دۆمەینی تایبەت و ژێردۆمەین دەبێت پێش نیشاندانی ڕووکاری فرۆشگا لە Laravel چارەسەر بکرێن."
+    },
+    "loading": {
+      "default": "بار دەکرێت..."
+    },
+    "notifications": {
+      "subscribe": "بەشداری نوێکارییەکان بکە",
+      "subscribed": "بەشداربوویت",
+      "description": "ئاگادار دەبیت کاتێک فرۆشگا بەرهەم زیاد دەکات یان داواکاری نوێ دەکاتەوە."
+    },
+    "checkout": {
+      "title": "پارەدان",
+      "name": "ناو",
+      "phone": "تەلەفۆن",
+      "address": "ناونیشان",
+      "notes": "تێبینی",
+      "submit": "ناردنی داواکاری"
+    }
+  }
+}

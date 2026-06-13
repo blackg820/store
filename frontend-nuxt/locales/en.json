@@ -1,0 +1,146 @@
+{
+  "admin": "Admin",
+  "analytics": "Analytics",
+  "categories": "Categories",
+  "customerNotifications": "Customer notifications",
+  "customers": "Customers",
+  "dashboard": "Dashboard",
+  "employees": "Employees",
+  "login": "Login",
+  "logout": "Logout",
+  "notifications": "Notifications",
+  "orders": "Orders",
+  "overview": "Overview",
+  "products": "Products",
+  "settings": "Settings",
+  "storeNotFound": "Store not found",
+  "stores": "Stores",
+  "subscriptions": "Subscriptions",
+  "storefront": {
+    "common": {
+      "allProducts": "All products",
+      "available": "Available",
+      "backToCategories": "Back to categories",
+      "backToProducts": "Back to products",
+      "continueShopping": "Continue shopping",
+      "items": "items",
+      "off": "off",
+      "storeHome": "Store home",
+      "unavailable": "Unavailable",
+      "viewAll": "View all",
+      "whatsapp": "WhatsApp"
+    },
+    "meta": {
+      "browseCategoryProducts": "Browse category products.",
+      "browseProducts": "Browse all store products.",
+      "browseStoreCategories": "Browse store categories.",
+      "defaultDescription": "Browse this Dokani storefront.",
+      "productDescription": "Store product detail.",
+      "productTitle": "Product",
+      "categoryTitle": "Category",
+      "storeNotFoundTitle": "Store not found"
+    },
+    "header": {
+      "cart": "Cart",
+      "languageSelector": "Language selector",
+      "onlineStorefront": "Online storefront",
+      "storeLogo": "Store logo",
+      "storeNavigation": "Store navigation"
+    },
+    "language": {
+      "en": "English",
+      "ar": "Arabic",
+      "ku": "Kurdish"
+    },
+    "hero": {
+      "coverAlt": "{store} cover",
+      "logoAlt": "{store} logo",
+      "open": "Open for orders",
+      "closed": "Currently closed",
+      "defaultDescription": "Browse products and order from this store.",
+      "statsLabel": "Store stats",
+      "products": "Products",
+      "categories": "Categories",
+      "daysDelivery": "Days delivery"
+    },
+    "home": {
+      "loading": "Loading storefront...",
+      "categoryEyebrow": "Shop by category",
+      "categoryTitle": "Explore the shelves",
+      "featuredEyebrow": "Featured products",
+      "featuredTitle": "Fresh picks from {store}",
+      "readyEyebrow": "Ready to order",
+      "checkoutAvailable": "Checkout is available",
+      "checkoutPaused": "Checkout is paused",
+      "whatsappHelp": "Questions? Contact the store through WhatsApp.",
+      "orderingUpdates": "Browse products and check back for ordering updates."
+    },
+    "products": {
+      "loading": "Loading products...",
+      "unavailable": "Products unavailable",
+      "title": "Products",
+      "count": "{count} public products available.",
+      "emptyTitle": "No products",
+      "emptyMessage": "This store has no active public products yet."
+    },
+    "categories": {
+      "loading": "Loading categories...",
+      "unavailable": "Categories unavailable",
+      "title": "Categories",
+      "browseStore": "Browse {store}",
+      "count": "{count} categories available.",
+      "emptyTitle": "No categories",
+      "emptyMessage": "This store has not published categories yet."
+    },
+    "category": {
+      "loading": "Loading category...",
+      "unavailable": "Category unavailable",
+      "notFoundTitle": "Category not found",
+      "notFoundMessage": "This category is not available for the current storefront.",
+      "eyebrow": "Category",
+      "count": "{count} products in this category.",
+      "emptyTitle": "No products here",
+      "emptyMessage": "This category does not have active public products yet."
+    },
+    "product": {
+      "loading": "Loading product...",
+      "unavailable": "Product unavailable",
+      "notFoundTitle": "Product not found",
+      "notFoundMessage": "This product is not available for the current storefront.",
+      "relatedEyebrow": "Related",
+      "relatedTitle": "More from this category",
+      "fallbackLetter": "P"
+    },
+    "empty": {
+      "productsTitle": "No products yet",
+      "productsMessage": "This store has not published public products."
+    },
+    "errors": {
+      "genericTitle": "Something went wrong",
+      "genericMessage": "Something went wrong.",
+      "appTitle": "Application error",
+      "returnHome": "Return home",
+      "storeNotFoundTitle": "Store not found",
+      "storeNotFoundMessage": "This storefront could not be resolved from the current host.",
+      "hostNotMatchedEyebrow": "Store not found",
+      "hostNotMatchedTitle": "No storefront matched this host",
+      "hostNotMatchedMessage": "Custom domains and subdomains must resolve through Laravel before the storefront renders."
+    },
+    "loading": {
+      "default": "Loading..."
+    },
+    "notifications": {
+      "subscribe": "Subscribe to updates",
+      "subscribed": "Subscribed",
+      "description": "Get notified when this store adds products or updates orders."
+    },
+    "checkout": {
+      "title": "Checkout",
+      "name": "Name",
+      "phone": "Phone",
+      "address": "Address",
+      "notes": "Notes",
+      "submit": "Place order"
+    }
+  }
+}

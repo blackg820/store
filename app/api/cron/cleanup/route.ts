@@ -1,60 +1,89 @@
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
 import { NextRequest, NextResponse } from 'next/server'
-import { query, execute } from '@/lib/db'
 
-const CRON_SECRET = process.env.CRON_SECRET || 'cron-secret-change-in-production'
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
-export async function POST(request: NextRequest) {
-  try {
-    const authHeader = request.headers.get('Authorization')
-    if (authHeader !== `Bearer ${CRON_SECRET}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+const execFileAsync = promisify(execFile)
 
-    const results = {
-      expiredSubscriptions: 0,
-      suspendedUsers: 0,
-      cleanedSessions: 0,
-      cleanedRateLimits: 0,
-      timestamp: new Date().toISOString(),
-    }
+function assertCronAccess(request: NextRequest): NextResponse | null {
+  const secret = process.env.CRON_SECRET
 
-    // 1. Suspend users with expired subscriptions (controlled mode only)
-    const suspended = await execute(
-      `UPDATE users SET status = 'suspended', updated_at = NOW()
-       WHERE mode = 'controlled' AND status = 'active'
-       AND subscription_plan IS NOT NULL
-       AND id NOT IN (
-         SELECT DISTINCT user_id FROM stores WHERE deleted_at IS NULL
-       )
-       AND updated_at < DATE_SUB(NOW(), INTERVAL 30 DAY)`
+  if (!secret && process.env.NODE_ENV === 'production') {
+    return NextResponse.json(
+      {
+        success: false,
+        code: 'CRON_SECRET_MISSING',
+        message: 'CRON_SECRET must be configured before cron endpoints can run.',
+      },
+      { status: 503 }
     )
-    results.suspendedUsers = suspended
+  }
 
-    // 2. Clean up old sessions
-    const sessions = await execute(
-      'DELETE FROM sessions WHERE last_activity < UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 30 DAY))'
+  if (secret && request.headers.get('authorization') !== `Bearer ${secret}`) {
+    return NextResponse.json(
+      {
+        success: false,
+        code: 'UNAUTHORIZED',
+        message: 'Unauthorized.',
+      },
+      { status: 401 }
     )
-    results.cleanedSessions = sessions
+  }
 
-    // 3. Clean up expired personal access tokens
-    await execute(
-      'DELETE FROM personal_access_tokens WHERE expires_at IS NOT NULL AND expires_at < NOW()'
-    )
+  return null
+}
 
-    return NextResponse.json({
-      success: true,
-      message: 'Cleanup completed',
-      results,
-    })
-  } catch (error) {
-    console.error('[Cron] Cleanup error:', error)
-    return NextResponse.json({ success: false, error: 'Cleanup failed' }, { status: 500 })
+async function runArtisan(args: string[]) {
+  const { stdout, stderr } = await execFileAsync('php', ['artisan', ...args], {
+    cwd: '/var/www/store/backend',
+    timeout: 60_000,
+    maxBuffer: 1024 * 1024,
+  })
+
+  return {
+    command: `php artisan ${args.join(' ')}`,
+    stdout: stdout.trim().slice(-4000),
+    stderr: stderr.trim().slice(-4000),
   }
 }
 
-export async function GET() {
+export async function POST(request: NextRequest) {
+  const denied = assertCronAccess(request)
+  if (denied) return denied
+
+  try {
+    const results = []
+    results.push(await runArtisan(['sanctum:prune-expired', '--hours=24']))
+    results.push(await runArtisan(['queue:prune-failed', '--hours=168']))
+
+    return NextResponse.json({
+      success: true,
+      message: 'Cleanup completed.',
+      results,
+      timestamp: new Date().toISOString(),
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Cleanup failed.'
+
+    return NextResponse.json(
+      {
+        success: false,
+        code: 'CLEANUP_FAILED',
+        message,
+      },
+      { status: 500 }
+    )
+  }
+}
+
+export async function GET(request: NextRequest) {
+  const denied = assertCronAccess(request)
+  if (denied) return denied
+
   return NextResponse.json({
-    status: 'ok',
+    success: true,
     service: 'cleanup-cron',
     timestamp: new Date().toISOString(),
   })

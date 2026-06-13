@@ -14,7 +14,6 @@ class ProductType extends Model
     protected $fillable = [
         'store_id',
         'name',
-        'name_ar',
         'slug',
         'schema',
         'is_active',

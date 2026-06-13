@@ -1,0 +1,62 @@
+import js from '@eslint/js'
+import globals from 'globals'
+import vue from 'eslint-plugin-vue'
+
+export default [
+  {
+    ignores: ['.nuxt/**', '.output/**', 'node_modules/**'],
+  },
+  js.configs.recommended,
+  ...vue.configs['flat/recommended'],
+  {
+    files: ['**/*.{js,vue}'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+        defineNuxtConfig: 'readonly',
+        defineNuxtPlugin: 'readonly',
+        defineNuxtRouteMiddleware: 'readonly',
+        definePageMeta: 'readonly',
+        defineStore: 'readonly',
+        navigateTo: 'readonly',
+        useAsyncData: 'readonly',
+        useCookie: 'readonly',
+        useDashboardStore: 'readonly',
+        useHead: 'readonly',
+        useI18n: 'readonly',
+        useNuxtApp: 'readonly',
+        useAuthStore: 'readonly',
+        useNotificationsStore: 'readonly',
+        useRequestHeaders: 'readonly',
+        useRoute: 'readonly',
+        useRuntimeConfig: 'readonly',
+        useSeoMeta: 'readonly',
+        useTenantStore: 'readonly',
+        useStorefrontData: 'readonly',
+        useStorefrontLocale: 'readonly',
+        storefrontNumberLocale: 'readonly',
+        $fetch: 'readonly',
+        clearError: 'readonly',
+        computed: 'readonly',
+        createError: 'readonly',
+        onMounted: 'readonly',
+        process: 'readonly',
+        reactive: 'readonly',
+        ref: 'readonly',
+        watch: 'readonly',
+      },
+    },
+    rules: {
+      'no-console': 'off',
+      'vue/multi-word-component-names': 'off',
+      'vue/no-v-html': 'off',
+      'vue/max-attributes-per-line': 'off',
+      'vue/singleline-html-element-content-newline': 'off',
+      'vue/html-closing-bracket-newline': 'off',
+      'vue/html-self-closing': 'off',
+    },
+  },
+]

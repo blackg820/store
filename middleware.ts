@@ -20,19 +20,50 @@ export default async function middleware(req: NextRequest) {
   // Define allowed domains (including localhost and root domain)
   const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'blackt.uk'
   const useSubdomains = process.env.NEXT_PUBLIC_USE_SUBDOMAINS === 'true'
+  const hostWithoutPort = hostname.split(':')[0]
+  const reservedSubdomains = new Set([
+    'admin',
+    'api',
+    'app',
+    'dashboard',
+    'cdn',
+    'media',
+    'ftp',
+    'mail',
+    'www',
+    'support',
+    'help',
+    'docs',
+    'status',
+  ])
 
   if (!useSubdomains) {
     return NextResponse.next()
   }
 
+  const isLocalHost =
+    hostWithoutPort === 'localhost' ||
+    hostWithoutPort === '127.0.0.1' ||
+    hostWithoutPort === '0.0.0.0' ||
+    hostWithoutPort === '::1' ||
+    /^\d{1,3}(\.\d{1,3}){3}$/.test(hostWithoutPort)
+
+  const isAppPath =
+    url.pathname.startsWith('/dashboard') ||
+    url.pathname.startsWith('/login') ||
+    url.pathname.startsWith('/register')
+
+  if (isLocalHost || isAppPath) {
+    return NextResponse.next()
+  }
+
   // Extract the subdomain from the hostname
-  const currentHost = hostname
-    .split(':')[0]
+  const currentHost = hostWithoutPort
     .replace(`.${rootDomain}`, '')
     .replace(rootDomain, '')
 
-  // If we're on the root domain or www or store (main app), don't rewrite
-  if (currentHost === 'www' || currentHost === 'store' || currentHost === '') {
+  // Reserved operational subdomains are handled by their own apps/ingress rules.
+  if (reservedSubdomains.has(currentHost) || currentHost === 'store' || currentHost === '') {
     return NextResponse.next()
   }
 
@@ -57,6 +88,11 @@ export default async function middleware(req: NextRequest) {
   }
 
   // Rewrite the request to the store page
+  const debug = process.env.NEXT_PUBLIC_DEBUG === 'true'
+  if (debug) {
+    console.log(`[Middleware] Hostname: ${hostname}, Subdomain: ${currentHost}, Original: ${req.nextUrl.pathname}, Target: /store/${currentHost}${url.pathname}`)
+  }
+
   url.pathname = `/store/${currentHost}${url.pathname}`
   return NextResponse.rewrite(url)
 }

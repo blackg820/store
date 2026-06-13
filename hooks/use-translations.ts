@@ -1,14 +1,12 @@
 'use client'
 
-import { useAuth } from '@/lib/auth-context'
-import { translations, type TranslationKey } from '@/lib/types'
+import { useTranslation } from 'react-i18next'
 
 export function useTranslations() {
-  const { language } = useAuth()
-  
-  const t = (key: TranslationKey): string => {
-    return translations[language][key] || translations.en[key] || key
+  const { t, i18n } = useTranslation()
+
+  return {
+    t: (key: string, options?: any) => t(key, options) as string,
+    language: i18n.language
   }
-  
-  return { t, language }
 }

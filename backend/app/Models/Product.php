@@ -16,12 +16,10 @@ class Product extends Model
         'product_type_id',
         'category_id',
         'sku',
+        'product_code',
         'title',
-        'title_ar',
-        'title_ku',
+        'slug',
         'description',
-        'description_ar',
-        'description_ku',
         'price',
         'cost_price',
         'discount',
@@ -65,5 +63,20 @@ class Product extends Model
     public function media()
     {
         return $this->hasMany(Media::class);
+    }
+
+    public function options()
+    {
+        return $this->hasMany(ProductOption::class)->orderBy('position');
+    }
+
+    public function variants()
+    {
+        return $this->hasMany(ProductVariant::class);
+    }
+
+    public function orderItems()
+    {
+        return $this->hasMany(OrderItem::class);
     }
 }

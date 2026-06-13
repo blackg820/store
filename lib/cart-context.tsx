@@ -6,7 +6,6 @@ export interface CartItem {
   id: string
   productId: string
   name: string
-  nameAr: string
   price: number
   deliveryFee: number
   quantity: number
@@ -54,8 +53,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const addToCart = (newItem: Omit<CartItem, 'id'>) => {
     setItems(prev => {
       // Check if item with same productId and SAME options already exists
-      const existingItemIndex = prev.findIndex(item => 
-        item.productId === newItem.productId && 
+      const existingItemIndex = prev.findIndex(item =>
+        item.productId === newItem.productId &&
         JSON.stringify(item.options) === JSON.stringify(newItem.options)
       )
 
@@ -76,7 +75,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const updateQuantity = (itemId: string, quantity: number) => {
     if (quantity < 1) return
-    setItems(prev => prev.map(item => 
+    setItems(prev => prev.map(item =>
       item.id === itemId ? { ...item, quantity } : item
     ))
   }
@@ -90,11 +89,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const totalDeliveryFee = items.length > 0 ? Math.max(...items.map(i => i.deliveryFee || 0)) : 0
 
   return (
-    <CartContext.Provider value={{ 
-      items, 
-      addToCart, 
-      removeFromCart, 
-      updateQuantity, 
+    <CartContext.Provider value={{
+      items,
+      addToCart,
+      removeFromCart,
+      updateQuantity,
       clearCart,
       totalItems,
       totalPrice,

@@ -26,6 +26,7 @@ class User extends Authenticatable
         'mode',
         'status',
         'subscription_plan',
+        'parent_id',
     ];
 
     /**
@@ -49,5 +50,53 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    /**
+     * Get the store associated with the user.
+     */
+    public function store()
+    {
+        return $this->hasOne(Store::class);
+    }
+
+    public function stores()
+    {
+        return $this->hasMany(Store::class);
+    }
+
+    public function tenantOwner(): self
+    {
+        return $this->parent ?: $this;
+    }
+
+    public function parent()
+    {
+        return $this->belongsTo(User::class, 'parent_id');
+    }
+
+    public function employees()
+    {
+        return $this->hasMany(User::class, 'parent_id');
+    }
+
+    public function activeSubscription()
+    {
+        return $this->hasOne(Subscription::class)->where('status', 'active');
+    }
+
+    public function subscriptions()
+    {
+        return $this->hasMany(Subscription::class);
+    }
+
+    public function userLimit()
+    {
+        return $this->hasOne(UserLimit::class);
+    }
+
+    public function hasFeature(string $featureSlug, float $increment = 0): bool
+    {
+        return app(\App\Services\SubscriptionService::class)->canUseFeature($this, $featureSlug, $increment);
     }
 }

@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useData } from '@/lib/data-context'
 import { useTranslations } from '@/hooks/use-translations'
 import { useAuth } from '@/lib/auth-context'
-import type { Subscription, SubscriptionPlan } from '@/lib/types'
+import type { Subscription } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import {
   Table,
@@ -47,13 +47,13 @@ export function SubscriptionsTable() {
   const { t } = useTranslations()
   const { language } = useAuth()
   const { subscriptions, updateSubscription } = useData()
-  
+
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedSub, setSelectedSub] = useState<Subscription | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  
-  const [editPlan, setEditPlan] = useState<SubscriptionPlan>('starter')
-  const [editStatus, setEditStatus] = useState<'active' | 'past_due' | 'canceled' | 'trialing'>('active')
+
+  const [editPlan, setEditPlan] = useState('starter')
+  const [editStatus, setEditStatus] = useState<'active' | 'past_due' | 'canceled' | 'trialing' | 'inactive'>('active')
   const [editEndDate, setEditEndDate] = useState('')
 
   const filteredSubs = (subscriptions || []).filter(sub => {
@@ -61,8 +61,8 @@ export function SubscriptionsTable() {
     const searchLower = searchQuery.toLowerCase()
     const userName = (sub as any).userName?.toLowerCase() || ''
     const userEmail = (sub as any).userEmail?.toLowerCase() || ''
-    const userId = (sub.userId || '').toLowerCase()
-    const planId = (sub.planId || '').toLowerCase()
+    const userId = String(sub.userId || '').toLowerCase()
+    const planId = String(sub.planId || '').toLowerCase()
 
     return (
       userName.includes(searchLower) ||
@@ -74,7 +74,7 @@ export function SubscriptionsTable() {
 
   const handleEdit = (sub: Subscription) => {
     setSelectedSub(sub)
-    setEditPlan(sub.planId)
+    setEditPlan(String(sub.planId))
     setEditStatus(sub.status)
     setEditEndDate(sub.endDate ? sub.endDate.split('T')[0] : new Date().toISOString().split('T')[0])
     setIsEditDialogOpen(true)
@@ -103,7 +103,7 @@ export function SubscriptionsTable() {
         <div className="relative w-full max-w-sm">
           <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder={language === 'en' ? 'Search subscribers...' : 'بحث في المشتركين...'}
+            placeholder={t('searchSubscribers')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="ps-9"
@@ -116,10 +116,10 @@ export function SubscriptionsTable() {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50">
-                <TableHead>{language === 'en' ? 'User' : 'المستخدم'}</TableHead>
-                <TableHead>{language === 'en' ? 'Plan' : 'الخطة'}</TableHead>
-                <TableHead>{language === 'en' ? 'Status' : 'الحالة'}</TableHead>
-                <TableHead>{language === 'en' ? 'Expiry Date' : 'تاريخ الانتهاء'}</TableHead>
+                <TableHead>{t('users')}</TableHead>
+                <TableHead>{t('plan')}</TableHead>
+                <TableHead>{t('status')}</TableHead>
+                <TableHead>{t('expiryDate')}</TableHead>
                 <TableHead className="text-end">{t('actions')}</TableHead>
               </TableRow>
             </TableHeader>
@@ -150,8 +150,8 @@ export function SubscriptionsTable() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge 
-                        variant="secondary" 
+                      <Badge
+                        variant="secondary"
                         className={cn(
                           'capitalize',
                           sub.status === 'active' ? 'bg-success/10 text-success border-success/20' : 'bg-destructive/10 text-destructive border-destructive/20'
@@ -175,18 +175,18 @@ export function SubscriptionsTable() {
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => handleEdit(sub)}>
                             <Edit className="h-4 w-4 me-2" />
-                            {language === 'en' ? 'Manage Account' : 'إدارة الحساب'}
+                            {t('manageAccount')}
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => toggleStatus(sub)}>
                             {sub.status === 'active' ? (
                               <>
                                 <ShieldAlert className="h-4 w-4 me-2 text-destructive" />
-                                <span className="text-destructive">Deactivate</span>
+                                <span className="text-destructive">{t('deactivate')}</span>
                               </>
                             ) : (
                               <>
                                 <ShieldCheck className="h-4 w-4 me-2 text-success" />
-                                <span className="text-success">Activate</span>
+                                <span className="text-success">{t('activate')}</span>
                               </>
                             )}
                           </DropdownMenuItem>
@@ -205,23 +205,23 @@ export function SubscriptionsTable() {
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{language === 'en' ? 'Manage Subscription' : 'إدارة الاشتراك'}</DialogTitle>
+            <DialogTitle>{t('manageSubscription')}</DialogTitle>
             <DialogDescription>
-              {language === 'en' ? 'Update plan, status and expiry date for this user.' : 'تحديث الخطة والحالة وتاريخ الانتهاء لهذا المستخدم.'}
+              {t('updateSubscriptionDesc')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>{language === 'en' ? 'Plan' : 'الخطة'}</Label>
-              <Select value={editPlan} onValueChange={(v) => setEditPlan(v as SubscriptionPlan)}>
+              <Label>{t('plan')}</Label>
+              <Select value={editPlan} onValueChange={setEditPlan}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="starter">Starter</SelectItem>
-                  <SelectItem value="pro">Pro</SelectItem>
-                  <SelectItem value="business">Business</SelectItem>
-                  <SelectItem value="enterprise">Enterprise</SelectItem>
+                  <SelectItem value="starter">{t('starter')}</SelectItem>
+                  <SelectItem value="pro">{t('pro')}</SelectItem>
+                  <SelectItem value="business">{t('business')}</SelectItem>
+                  <SelectItem value="enterprise">{t('enterprise')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -232,15 +232,15 @@ export function SubscriptionsTable() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="past_due">Past Due</SelectItem>
-                  <SelectItem value="canceled">Canceled</SelectItem>
-                  <SelectItem value="trialing">Trialing</SelectItem>
+                  <SelectItem value="active">{t('active')}</SelectItem>
+                  <SelectItem value="past_due">{t('pastDue')}</SelectItem>
+                  <SelectItem value="canceled">{t('canceled')}</SelectItem>
+                  <SelectItem value="trialing">{t('trialing')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>{language === 'en' ? 'Expiry Date' : 'تاريخ الانتهاء'}</Label>
+              <Label>{t('expiryDate')}</Label>
               <div className="relative">
                 <Calendar className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input

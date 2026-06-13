@@ -5,17 +5,17 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { useTranslations } from '@/hooks/use-translations'
 import { useData } from '@/lib/data-context'
-import { DashboardHeader } from '@/components/dashboard/header'
 import { UsersTable } from '@/components/dashboard/users-table'
-import { Card, CardContent } from '@/components/ui/card'
 import { Users, UserCheck, UserX, Store } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { DashboardPageHeader } from '@/components/dashboard/page-header'
 
 export default function UsersPage() {
   const router = useRouter()
   const { user } = useAuth()
   const { t } = useTranslations()
   const { users, stores } = useData()
-  
+
   // Admin only page
   useEffect(() => {
     if (user && user.role !== 'admin') {
@@ -26,7 +26,7 @@ export default function UsersPage() {
   if (user?.role !== 'admin') {
     return null
   }
-  
+
   // Calculate stats
   const platformUsers = users.filter(u => u.role === 'store_owner' || u.role === 'user')
   const stats = {
@@ -37,59 +37,43 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="min-h-screen">
-      <DashboardHeader title={t('users')} />
-      
-      <div className="p-4 md:p-6 space-y-6">
-        {/* Stats Summary */}
-        <div className="grid gap-4 sm:grid-cols-4">
-          <Card>
-            <CardContent className="p-4 flex items-center gap-4">
-              <div className="p-3 rounded-lg bg-primary/10">
-                <Users className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total Users</p>
-                <p className="text-2xl font-bold">{stats.total}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 flex items-center gap-4">
-              <div className="p-3 rounded-lg bg-success/10">
-                <UserCheck className="h-5 w-5 text-success" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">{t('active')}</p>
-                <p className="text-2xl font-bold">{stats.active}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 flex items-center gap-4">
-              <div className="p-3 rounded-lg bg-muted">
-                <UserX className="h-5 w-5 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">{t('inactive')}</p>
-                <p className="text-2xl font-bold">{stats.inactive}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 flex items-center gap-4">
-              <div className="p-3 rounded-lg bg-accent/10">
-                <Store className="h-5 w-5 text-accent" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total Stores</p>
-                <p className="text-2xl font-bold">{stats.totalStores}</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+    <div className="mx-auto max-w-[1600px] space-y-8 pb-20">
+      <DashboardPageHeader
+        eyebrow="Platform administration"
+        title={t('users')}
+        description="Manage tenant owners, platform admins, subscription assignment, and account access from a controlled admin surface."
+      />
 
-        {/* Users Table */}
+      {/* Stats Summary Section */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 animate-in fade-in slide-in-from-top-4 duration-700">
+        {[
+          { key: 'total_users', count: stats.total, color: 'primary', icon: Users, sub: 'Managed accounts' },
+          { key: 'active', count: stats.active, color: 'success', icon: UserCheck, sub: 'Currently active' },
+          { key: 'inactive', count: stats.inactive, color: 'muted', icon: UserX, sub: 'Pending/Disabled' },
+          { key: 'total_stores', count: stats.totalStores, color: 'accent', icon: Store, sub: 'Linked storefronts' },
+        ].map((stat) => (
+          <div key={stat.key} className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/20">
+            <span className="text-xs font-semibold text-muted-foreground">{t(stat.key as any) || stat.key.replace('_', ' ')}</span>
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col">
+                <span className="text-2xl font-semibold tracking-tight tabular-nums">{stat.count}</span>
+                <span className="mt-1 text-xs text-muted-foreground">{stat.sub}</span>
+              </div>
+              <div className={cn(
+                "flex h-10 w-10 items-center justify-center rounded-lg",
+                stat.color === 'primary' && "bg-primary/10 text-primary",
+                stat.color === 'success' && "bg-success/10 text-success",
+                stat.color === 'muted' && "bg-muted text-muted-foreground opacity-50",
+                stat.color === 'accent' && "bg-accent/10 text-accent",
+              )}>
+                <stat.icon className="h-5 w-5" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
         <UsersTable />
       </div>
     </div>

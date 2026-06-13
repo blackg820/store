@@ -4,26 +4,26 @@ import path from 'path'
 type Locale = 'en' | 'ar' | 'ku'
 
 const locales: Record<Locale, any> = {
-  en: JSON.parse(fs.readFileSync(path.join(process.cwd(), 'locales/en.json'), 'utf8')),
-  ar: JSON.parse(fs.readFileSync(path.join(process.cwd(), 'locales/ar.json'), 'utf8')),
-  ku: JSON.parse(fs.readFileSync(path.join(process.cwd(), 'locales/ku.json'), 'utf8')),
+  en: JSON.parse(fs.readFileSync(path.join(process.cwd(), 'locales/en/common.json'), 'utf8')),
+  ar: JSON.parse(fs.readFileSync(path.join(process.cwd(), 'locales/ar/common.json'), 'utf8')),
+  ku: JSON.parse(fs.readFileSync(path.join(process.cwd(), 'locales/ku/common.json'), 'utf8')),
 }
 
 import { NextRequest } from 'next/server'
 
 export function getServerTranslations(lang: string = 'ar') {
   const locale = (locales[lang as Locale] || locales.ar)
-  
+
   return {
     t: (key: string, variables?: Record<string, string | number>) => {
       let text = locale[key] || key
-      
+
       if (variables) {
         Object.entries(variables).forEach(([name, value]) => {
           text = text.replace(`{{${name}}}`, String(value))
         })
       }
-      
+
       return text
     }
   }

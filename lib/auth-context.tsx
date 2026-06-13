@@ -7,8 +7,10 @@ interface AuthUser {
   id: string
   email: string
   name: string
-  role: 'admin' | 'store_owner'
+  role: 'admin' | 'store_owner' | 'employee'
   mode: 'controlled' | 'unlimited'
+  parentId?: string | null
+  subscription_plan?: string
 }
 
 interface AuthContextType {
@@ -34,38 +36,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const direction: Direction = (language === 'ar' || language === 'ku') ? 'rtl' : 'ltr'
 
   useEffect(() => {
-    // Check for stored session
-    const storedUser = localStorage.getItem('storify_user')
-    const storedToken = localStorage.getItem('storify_access_token')
-    const storedRefresh = localStorage.getItem('storify_refresh_token')
-    const storedLang = localStorage.getItem('storify_lang') as Language | null
+    let cancelled = false
 
-    if (storedUser && storedToken) {
-      try {
-        setUser(JSON.parse(storedUser))
-        setAccessToken(storedToken)
+    const bootstrapSession = async () => {
+      const storedUser = localStorage.getItem('storify_user')
+      const storedToken = localStorage.getItem('storify_access_token')
+      const storedRefresh = localStorage.getItem('storify_refresh_token')
+      const storedLang = localStorage.getItem('storify_lang') as Language | null
 
-        // Try to refresh token silently
-        if (storedRefresh) {
-          refreshToken(storedRefresh).catch(() => {
-            // Token expired, clear session
+      if (storedLang && (storedLang === 'ar' || storedLang === 'en' || storedLang === 'ku')) {
+        setLanguageState(storedLang)
+      } else {
+        document.documentElement.dir = 'rtl'
+        document.documentElement.lang = 'ar'
+      }
+
+      if (storedUser && storedToken) {
+        try {
+          const parsedUser = JSON.parse(storedUser)
+
+          if (storedRefresh) {
+            await refreshToken(storedRefresh)
+          } else {
+            setAccessToken(storedToken)
+          }
+
+          if (!cancelled) {
+            setUser(parsedUser)
+          }
+        } catch {
+          if (!cancelled) {
             clearSession()
-          })
+          }
         }
-      } catch {
-        clearSession()
+      }
+
+      if (!cancelled) {
+        setIsLoading(false)
       }
     }
 
-    if (storedLang && (storedLang === 'ar' || storedLang === 'en' || storedLang === 'ku')) {
-      setLanguageState(storedLang)
-    } else {
-      // Default to Arabic — set document direction immediately
-      document.documentElement.dir = 'rtl'
-      document.documentElement.lang = 'ar'
-    }
+    bootstrapSession()
 
-    setIsLoading(false)
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   useEffect(() => {
@@ -79,6 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('storify_user')
     localStorage.removeItem('storify_access_token')
     localStorage.removeItem('storify_refresh_token')
+    localStorage.removeItem('storify_selected_store_id')
   }
 
   const refreshToken = async (token: string) => {
@@ -115,6 +131,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           name: data.data.user.name,
           role: data.data.user.role,
           mode: data.data.user.mode,
+          parentId: data.data.user.parentId ?? null,
+          subscription_plan: data.data.user.subscriptionPlan ?? data.data.user.subscription_plan,
         }
 
         setUser(userData)
@@ -122,6 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem('storify_user', JSON.stringify(userData))
         localStorage.setItem('storify_access_token', data.data.accessToken)
         localStorage.setItem('storify_refresh_token', data.data.refreshToken)
+        localStorage.removeItem('storify_selected_store_id')
         return true
       }
 
@@ -132,6 +151,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const logout = () => {
+    const token = localStorage.getItem('storify_access_token')
+    const refreshToken = localStorage.getItem('storify_refresh_token')
+
+    if (token) {
+      fetch('/api/v1/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ refreshToken }),
+        keepalive: true,
+      }).catch(() => {
+        // Local session cleanup must happen even if the backend is unavailable.
+      })
+    }
+
     clearSession()
   }
 

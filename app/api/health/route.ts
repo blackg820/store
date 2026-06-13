@@ -1,29 +1,57 @@
 import { NextResponse } from 'next/server'
-import { checkConnection } from '@/lib/db'
-import { isBunnyConfigured } from '@/lib/bunny-cdn'
-import { isTelegramConfigured } from '@/lib/telegram'
 
-/**
- * Health check endpoint for monitoring and uptime checks.
- */
-export async function GET() {
-  const dbHealthy = await checkConnection()
+export const dynamic = 'force-dynamic'
 
-  const checks = {
-    api: 'healthy',
-    database: dbHealthy ? 'healthy' : 'unhealthy',
-    bunny_cdn: isBunnyConfigured() ? 'configured' : 'not-configured',
-    telegram: isTelegramConfigured() ? 'configured' : 'not-configured',
-    timestamp: new Date().toISOString(),
-    version: '1.0.0',
+function internalApiUrl(): string {
+  return (
+    process.env.INTERNAL_API_URL ||
+    process.env.NEXT_PUBLIC_INTERNAL_API_URL ||
+    'http://127.0.0.1:8000'
+  ).replace(/\/$/, '')
+}
+
+async function checkBackend() {
+  const started = Date.now()
+
+  try {
+    const response = await fetch(`${internalApiUrl()}/up`, {
+      cache: 'no-store',
+      signal: AbortSignal.timeout(2500),
+    })
+
+    return {
+      status: response.ok ? 'healthy' : 'unhealthy',
+      httpStatus: response.status,
+      latencyMs: Date.now() - started,
+    }
+  } catch {
+    return {
+      status: 'unhealthy',
+      httpStatus: null,
+      latencyMs: Date.now() - started,
+    }
   }
+}
 
-  const overallStatus = dbHealthy ? 'ok' : 'degraded'
+export async function GET() {
+  const backend = await checkBackend()
+  const healthy = backend.status === 'healthy'
 
   return NextResponse.json(
-    { status: overallStatus, checks },
     {
-      status: dbHealthy ? 200 : 503,
+      success: healthy,
+      status: healthy ? 'ok' : 'degraded',
+      checks: {
+        next: {
+          status: 'healthy',
+          uptimeSeconds: Math.round(process.uptime()),
+        },
+        backend,
+      },
+      timestamp: new Date().toISOString(),
+    },
+    {
+      status: healthy ? 200 : 503,
       headers: { 'Cache-Control': 'no-store' },
     }
   )

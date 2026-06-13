@@ -3,25 +3,34 @@
 import { useAuth } from '@/lib/auth-context'
 import { useTranslations } from '@/hooks/use-translations'
 import { useData } from '@/lib/data-context'
-import { DashboardHeader } from '@/components/dashboard/header'
 import { OrdersTable } from '@/components/dashboard/orders-table'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
+import { AccessRestricted } from '@/components/dashboard/access-restricted'
+import { DashboardPageHeader } from '@/components/dashboard/page-header'
 
 export default function OrdersPage() {
   const { user } = useAuth()
   const { t } = useTranslations()
-  const { orders, getStoresByUserId } = useData()
-  
+  const { orders, getStoresByUserId, selectedStoreId } = useData()
+
   const isAdmin = user?.role === 'admin'
-  
+
+  if (user?.role === 'employee') {
+    return (
+      <AccessRestricted description="Employees can review assigned activity on the dashboard, but order management is restricted to store owners and platform admins." />
+    )
+  }
+
   // Get relevant orders
   const userStores = isAdmin ? [] : getStoresByUserId(user?.id || '')
   const storeIds = userStores.map(s => s.id)
-  const relevantOrders = isAdmin 
-    ? orders 
+  let relevantOrders = isAdmin
+    ? orders
     : orders.filter(o => storeIds.includes(o.storeId))
+
+  if (selectedStoreId) {
+    relevantOrders = relevantOrders.filter(o => o.storeId === selectedStoreId)
+  }
 
   // Calculate stats
   const stats = {
@@ -33,18 +42,15 @@ export default function OrdersPage() {
   }
 
   return (
-    <div className="space-y-8 max-w-[1600px] mx-auto">
-      <div className="flex flex-col gap-2">
-        <h2 className="text-3xl font-black tracking-tight text-foreground">
-          {t('orders')}
-        </h2>
-        <p className="text-muted-foreground text-sm font-medium">
-          Track fulfillment, handle returns, and monitor high-risk deliveries.
-        </p>
-      </div>
+    <div className="mx-auto max-w-[1600px] space-y-8 pb-20">
+      <DashboardPageHeader
+        eyebrow={isAdmin ? 'Platform fulfillment' : 'Store fulfillment'}
+        title={t('orders')}
+        description="Track fulfillment, handle returns, monitor delivery issues, and keep Al-Waseet handoffs visible across selected stores."
+      />
 
       {/* Status Summary Section */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 animate-in fade-in slide-in-from-top-4 duration-500">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 animate-in fade-in slide-in-from-top-4 duration-700">
         {[
           { key: 'pending', count: stats.pending, color: 'warning' },
           { key: 'confirmed', count: stats.confirmed, color: 'primary' },
@@ -52,12 +58,12 @@ export default function OrdersPage() {
           { key: 'returned', count: stats.returned, color: 'muted' },
           { key: 'problematic', count: stats.problematic, color: 'danger' },
         ].map((stat) => (
-          <div key={stat.key} className="glass-card border-white/5 p-4 rounded-2xl flex flex-col gap-2 group hover:scale-105 transition-all duration-300">
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-70">{t(stat.key as any)}</span>
+          <div key={stat.key} className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/20">
+            <span className="text-xs font-semibold text-muted-foreground">{t(stat.key as any)}</span>
             <div className="flex items-center justify-between">
-              <span className="text-2xl font-black tracking-tighter">{stat.count}</span>
+              <span className="text-2xl font-semibold tracking-tight tabular-nums">{stat.count}</span>
               <div className={cn(
-                "h-2 w-2 rounded-full",
+                "h-2.5 w-2.5 rounded-full",
                 stat.color === 'warning' && "bg-warning",
                 stat.color === 'primary' && "bg-primary",
                 stat.color === 'success' && "bg-success",

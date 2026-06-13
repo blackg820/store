@@ -1,339 +1,260 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { AlertCircle, Bell, DollarSign, Loader2, Package, ShoppingBag, TrendingUp, Users } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import { apiClient } from '@/lib/api-client'
 import { useAuth } from '@/lib/auth-context'
 import { useData } from '@/lib/data-context'
-import { DashboardHeader } from '@/components/dashboard/header'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import {
-  Bar,
-  BarChart,
-  Line,
-  LineChart,
-  Pie,
-  PieChart,
-  Cell,
-  ResponsiveContainer,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-} from 'recharts'
-import { calculateStoreRanking } from '@/lib/order-utils'
-import { DollarSign, TrendingUp, ShoppingBag, Trophy } from 'lucide-react'
+import { AccessRestricted } from '@/components/dashboard/access-restricted'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 
 const STATUS_COLORS: Record<string, string> = {
-  pending: 'oklch(0.75 0.15 70)',
+  waiting: 'oklch(0.75 0.15 70)',
   confirmed: 'oklch(0.55 0.18 250)',
   delivered: 'oklch(0.65 0.15 165)',
-  returned: 'oklch(0.55 0.22 25)',
-  problematic: 'oklch(0.5 0.22 15)',
+  rejected: 'oklch(0.55 0.22 25)',
+  problem: 'oklch(0.5 0.22 15)',
+}
+
+interface AnalyticsPayload {
+  metrics?: Record<string, number | null>
+  revenue?: Record<string, number>
+  orders?: Record<string, number>
+  products?: Record<string, number>
+  customers?: Record<string, number>
+  traffic?: {
+    visits?: number
+    uniqueVisitors?: number
+    conversionRate?: number | null
+    checkoutStarts?: number
+    deviceBreakdown?: Record<string, number>
+  }
+  notifications?: Record<string, number>
+  revenueChart?: Array<{ date: string; total: number }>
+  topProducts?: Array<{ id: number; title: string; sold_count: number }>
+  platform?: any
 }
 
 export default function AnalyticsPage() {
   const { user, language } = useAuth()
-  const { orders, stores, products, buyers } = useData()
+  const { selectedStoreId, accessibleStores } = useData()
+  const [range, setRange] = useState('30d')
+  const [payload, setPayload] = useState<AnalyticsPayload | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const isAdmin = user?.role === 'admin'
-  const visibleStores = useMemo(
-    () => (isAdmin ? stores : stores.filter((s) => s.userId === user?.id)),
-    [isAdmin, stores, user?.id]
-  )
-  const storeIds = visibleStores.map((s) => s.id)
-  const visibleOrders = useMemo(
-    () => orders.filter((o) => storeIds.includes(o.storeId)),
-    [orders, storeIds]
-  )
 
-  // KPIs
-  const kpis = useMemo(() => {
-    const delivered = visibleOrders.filter((o) => o.status === 'delivered')
-    const revenue = delivered.reduce((sum, o) => sum + o.totalPrice, 0)
-    const rejected = visibleOrders.filter(
-      (o) => o.status === 'returned' || o.status === 'problematic'
-    ).length
-    const rejectionRate =
-      visibleOrders.length > 0
-        ? ((rejected / visibleOrders.length) * 100).toFixed(1)
-        : '0'
-    const avgOrderValue =
-      delivered.length > 0 ? (revenue / delivered.length).toFixed(2) : '0'
+  useEffect(() => {
+    if (!user || user.role === 'employee') return
+    let cancelled = false
+    setIsLoading(true)
+    setError(null)
+    apiClient.get<{ success: boolean; data?: AnalyticsPayload }>('/api/v1/analytics/dashboard', {
+      params: {
+        range,
+        ...(selectedStoreId ? { store_id: selectedStoreId } : {}),
+      },
+    })
+      .then((res) => {
+        if (!cancelled) setPayload(res.data || {})
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Analytics failed to load')
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false)
+      })
 
-    return {
-      revenue: revenue.toFixed(2),
-      orders: visibleOrders.length,
-      rejectionRate,
-      avgOrderValue,
+    return () => {
+      cancelled = true
     }
-  }, [visibleOrders])
+  }, [user, selectedStoreId, range])
 
-  // Status distribution
   const statusData = useMemo(() => {
-    const counts: Record<string, number> = {}
-    visibleOrders.forEach((o) => {
-      counts[o.status] = (counts[o.status] ?? 0) + 1
-    })
-    return Object.entries(counts).map(([name, value]) => ({
-      name,
-      value,
-      fill: STATUS_COLORS[name] ?? 'oklch(0.5 0.02 250)',
-    }))
-  }, [visibleOrders])
+    const orders = payload?.orders || {}
+    return ['waiting', 'confirmed', 'delivered', 'rejected', 'problem']
+      .map((key) => ({ name: key, value: Number(orders[key] || 0), fill: STATUS_COLORS[key] }))
+      .filter((row) => row.value > 0)
+  }, [payload?.orders])
 
-  // Monthly revenue trend
-  const revenueData = useMemo(() => {
-    const months: Record<string, number> = {}
-    visibleOrders
-      .filter((o) => o.status === 'delivered')
-      .forEach((o) => {
-        const date = new Date(o.createdAt)
-        const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-        months[key] = (months[key] ?? 0) + o.totalPrice
-      })
-    return Object.entries(months)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([month, revenue]) => ({
-        month,
-        revenue: Math.round(revenue * 100) / 100,
-      }))
-  }, [visibleOrders])
+  const revenueData = useMemo(
+    () => (payload?.revenueChart || []).map((row) => ({ date: row.date, revenue: Number(row.total || 0) })),
+    [payload?.revenueChart]
+  )
 
-  // Store rankings
-  const rankings = useMemo(() => {
-    return visibleStores
-      .map((store) => ({
-        ...store,
-        metrics: calculateStoreRanking(store.id, orders, products),
-      }))
-      .sort((a, b) => b.metrics.score - a.metrics.score)
-      .slice(0, 10)
-  }, [visibleStores, orders, products])
-
-  // Top products
-  const topProducts = useMemo(() => {
-    const productCounts: Record<string, number> = {}
-    visibleOrders.forEach((o) => {
-      o.items.forEach((item) => {
-        productCounts[item.productId] = (productCounts[item.productId] ?? 0) + item.quantity
-      })
-    })
-    return Object.entries(productCounts)
-      .map(([productId, count]) => {
-        const product = products.find((p) => p.id === productId)
-        return {
-          name: language === 'ar' ? product?.titleAr ?? 'Unknown' : product?.title ?? 'Unknown',
-          count,
-        }
-      })
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5)
-  }, [visibleOrders, products, language])
+  if (user?.role === 'employee') {
+    return <AccessRestricted description="Analytics is restricted to store owners and platform admins. Employees can see assigned activity on the dashboard." />
+  }
 
   return (
-    <div className="min-h-screen">
-      <DashboardHeader title={language === 'ar' ? 'التحليلات' : 'Analytics'} />
-
-      <div className="p-4 md:p-6 space-y-6">
-        {/* KPI Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">
-                {language === 'ar' ? 'الإيرادات' : 'Revenue'}
-              </CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">${kpis.revenue}</div>
-              <p className="text-xs text-muted-foreground">
-                {language === 'ar' ? 'من الطلبات المسلمة' : 'From delivered orders'}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">
-                {language === 'ar' ? 'إجمالي الطلبات' : 'Total Orders'}
-              </CardTitle>
-              <ShoppingBag className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{kpis.orders}</div>
-              <p className="text-xs text-muted-foreground">
-                {buyers.length} {language === 'ar' ? 'مشتري' : 'buyers'}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">
-                {language === 'ar' ? 'متوسط قيمة الطلب' : 'Avg Order Value'}
-              </CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">${kpis.avgOrderValue}</div>
-              <p className="text-xs text-muted-foreground">
-                {language === 'ar' ? 'لكل طلب مسلم' : 'Per delivered order'}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">
-                {language === 'ar' ? 'معدل الرفض' : 'Rejection Rate'}
-              </CardTitle>
-              <Trophy className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{kpis.rejectionRate}%</div>
-              <p className="text-xs text-muted-foreground">
-                {language === 'ar' ? 'من جميع الطلبات' : 'Of all orders'}
-              </p>
-            </CardContent>
-          </Card>
+    <div className="mx-auto max-w-[1600px] space-y-8 pb-20">
+      <div className="flex flex-col gap-6 border-b border-border pb-8 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-4xl font-black tracking-tighter">{language === 'ar' ? 'التحليلات' : 'Analytics'}</h1>
+          <p className="mt-2 max-w-2xl text-sm font-medium text-muted-foreground">Backend-powered commerce, traffic, customer risk, notification, and platform health metrics.</p>
         </div>
-
-        {/* Charts */}
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>{language === 'ar' ? 'الإيرادات الشهرية' : 'Monthly Revenue'}</CardTitle>
-              <CardDescription>
-                {language === 'ar' ? 'اتجاه الإيرادات عبر الوقت' : 'Revenue trend over time'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={revenueData}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis dataKey="month" className="text-xs" />
-                  <YAxis className="text-xs" />
-                  <Tooltip
-                    contentStyle={{
-                      background: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '0.5rem',
-                    }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="revenue"
-                    stroke="oklch(0.55 0.18 250)"
-                    strokeWidth={2}
-                    dot={{ r: 4 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>{language === 'ar' ? 'توزيع الحالات' : 'Status Distribution'}</CardTitle>
-              <CardDescription>
-                {language === 'ar' ? 'حالات الطلبات الحالية' : 'Current order status breakdown'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={statusData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    dataKey="value"
-                    label={({ name, value }) => `${name}: ${value}`}
-                  >
-                    {statusData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>{language === 'ar' ? 'أفضل المنتجات' : 'Top Products'}</CardTitle>
-              <CardDescription>
-                {language === 'ar' ? 'الأكثر مبيعاً' : 'Best sellers by quantity'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={topProducts}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis dataKey="name" className="text-xs" />
-                  <YAxis className="text-xs" />
-                  <Tooltip
-                    contentStyle={{
-                      background: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '0.5rem',
-                    }}
-                  />
-                  <Bar dataKey="count" fill="oklch(0.65 0.15 165)" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                {language === 'ar' ? 'تصنيف المتاجر' : 'Store Rankings'}
-              </CardTitle>
-              <CardDescription>
-                {language === 'ar'
-                  ? 'المتاجر حسب الأداء'
-                  : 'Top stores by performance score'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {rankings.map((store, idx) => (
-                  <div
-                    key={store.id}
-                    className="flex items-center gap-3 p-3 rounded-lg bg-muted/50"
-                  >
-                    <div className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold shrink-0">
-                      {idx + 1}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">
-                        {language === 'ar' ? store.nameAr : store.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {store.metrics.deliveredOrders}{' '}
-                        {language === 'ar' ? 'مسلم' : 'delivered'} · $
-                        {store.metrics.revenue.toFixed(0)}
-                      </p>
-                    </div>
-                    <Badge variant="outline" className="shrink-0">
-                      {store.metrics.score}
-                    </Badge>
-                  </div>
-                ))}
-                {rankings.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-8">
-                    {language === 'ar' ? 'لا توجد بيانات' : 'No data available'}
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+        <div className="flex items-center gap-2">
+          <Select value={range} onValueChange={setRange}>
+            <SelectTrigger className="w-[150px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="7d">Last 7 days</SelectItem>
+              <SelectItem value="30d">Last 30 days</SelectItem>
+              <SelectItem value="90d">Last 90 days</SelectItem>
+              <SelectItem value="year">This year</SelectItem>
+            </SelectContent>
+          </Select>
+          {selectedStoreId && <Badge variant="outline">{accessibleStores.find((store) => store.id === selectedStoreId)?.name || 'Selected store'}</Badge>}
         </div>
       </div>
+
+      {error && (
+        <Card className="border-destructive/30 bg-destructive/10">
+          <CardContent className="flex items-center gap-3 p-5 text-destructive">
+            <AlertCircle className="h-5 w-5" />
+            <p className="text-sm font-medium">{error}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {isLoading ? (
+        <div className="flex min-h-[360px] items-center justify-center rounded-lg border border-dashed">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        </div>
+      ) : (
+        <>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {([
+              ['Total orders', payload?.metrics?.totalOrders ?? 0, ShoppingBag],
+              ['Orders today', payload?.metrics?.ordersToday ?? 0, TrendingUp],
+              ['Revenue month', `${Number(payload?.revenue?.month || 0).toLocaleString()} IQD`, DollarSign],
+              ['High-risk customers', payload?.customers?.highRisk ?? 0, Users],
+              ['Low-stock products', payload?.products?.lowStock ?? 0, Package],
+              ['Traffic visits', payload?.traffic?.visits ?? 0, TrendingUp],
+              ['Notifications opened', payload?.notifications?.opened ?? 0, Bell],
+              ['Conversion rate', payload?.traffic?.conversionRate == null ? 'n/a' : `${payload.traffic.conversionRate}%`, TrendingUp],
+            ] as Array<[string, string | number, LucideIcon]>).map(([label, value, Icon]) => (
+              <Card key={String(label)}>
+                <CardContent className="flex items-center justify-between p-5">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{String(label)}</p>
+                    <p className="mt-2 text-2xl font-black tracking-tight">{String(value)}</p>
+                  </div>
+                  <Icon className="h-5 w-5 text-primary" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <div className="grid gap-6 xl:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Revenue trend</CardTitle>
+                <CardDescription>Delivered-order revenue from the analytics API.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {revenueData.length === 0 ? (
+                  <EmptyState />
+                ) : (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={revenueData}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                      <XAxis dataKey="date" className="text-xs" />
+                      <YAxis className="text-xs" />
+                      <Tooltip />
+                      <Line type="monotone" dataKey="revenue" stroke="oklch(0.55 0.18 250)" strokeWidth={2} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Order status</CardTitle>
+                <CardDescription>Waiting, delivered, rejected, and problem counts.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {statusData.length === 0 ? (
+                  <EmptyState />
+                ) : (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie data={statusData} dataKey="value" nameKey="name" innerRadius={64} outerRadius={104}>
+                        {statusData.map((entry) => <Cell key={entry.name} fill={entry.fill} />)}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Top products</CardTitle>
+                <CardDescription>Best sellers by quantity.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {(payload?.topProducts || []).length === 0 ? (
+                  <EmptyState />
+                ) : (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={payload?.topProducts || []}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                      <XAxis dataKey="title" className="text-xs" />
+                      <YAxis className="text-xs" />
+                      <Tooltip />
+                      <Bar dataKey="sold_count" fill="oklch(0.65 0.15 165)" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>{isAdmin ? 'Platform health' : 'Traffic and notifications'}</CardTitle>
+                <CardDescription>Operational summary without heavy frontend calculations.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-3 sm:grid-cols-2">
+                {(isAdmin && payload?.platform) ? (
+                  <>
+                    <Metric label="Users" value={payload.platform.users?.total} />
+                    <Metric label="Stores" value={payload.platform.stores?.total} />
+                    <Metric label="Active stores" value={payload.platform.stores?.active} />
+                    <Metric label="Failed jobs" value={payload.platform.infrastructure?.failedJobs} />
+                  </>
+                ) : (
+                  <>
+                    <Metric label="Unique visitors" value={payload?.traffic?.uniqueVisitors} />
+                    <Metric label="Checkout starts" value={payload?.traffic?.checkoutStarts} />
+                    <Metric label="Delivered notifications" value={payload?.notifications?.delivered} />
+                    <Metric label="Clicked notifications" value={payload?.notifications?.clicked} />
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      )}
     </div>
   )
+}
+
+function Metric({ label, value }: { label: string; value: unknown }) {
+  return (
+    <div className="rounded-lg border bg-muted/20 p-4">
+      <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
+      <p className="mt-2 text-2xl font-black">{String(value ?? 0)}</p>
+    </div>
+  )
+}
+
+function EmptyState() {
+  return <div className="flex h-[300px] items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">No analytics data for this range.</div>
 }

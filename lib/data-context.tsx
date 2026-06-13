@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from 'react'
 import type {
   User,
   Store,
@@ -15,8 +15,11 @@ import type {
   Media,
   AuditLog,
 } from './types'
+import { translations } from './types'
 import { apiClient } from './api-client'
 import { toast } from 'sonner'
+import { useAuth } from './auth-context'
+import { usePathname } from 'next/navigation'
 
 interface ApiResponse<T> {
   success: boolean
@@ -40,8 +43,18 @@ interface DataContextType {
   auditLogs: AuditLog[]
   settings: Record<string, string>
   isDataLoading: boolean
+  dataError: string | null
+  employees: User[]
   selectedStoreId: string | null
+  selectedStore: Store | null
+  accessibleStores: Store[]
+  selectedStoreError: string | null
   setSelectedStoreId: (id: string | null) => void
+
+  // Employee operations
+  addEmployee: (employee: any) => Promise<boolean>
+  updateEmployee: (id: string, data: any) => Promise<void>
+  deleteEmployee: (id: string) => Promise<void>
 
   // User operations
   addUser: (user: any) => Promise<boolean>
@@ -62,6 +75,7 @@ interface DataContextType {
   addOrder: (order: Omit<Order, 'id' | 'createdAt' | 'updatedAt' | 'items'> & { items: Array<{ productId: string, quantity: number, options?: any }> }) => Promise<Order | { error: string } | undefined>
   updateOrder: (id: string, data: Partial<Order>) => void
   updateOrderStatus: (id: string, status: OrderStatus, performedBy?: string) => void
+  sendOrderToAlWaseet: (id: string) => Promise<boolean>
   deleteOrder: (id: string) => void
 
   // Buyer operations
@@ -118,6 +132,8 @@ function generateId(prefix: string): string {
 }
 
 export function DataProvider({ children }: { children: ReactNode }) {
+  const { user: currentUser, isLoading: isAuthLoading } = useAuth()
+  const pathname = usePathname()
   const [users, setUsers] = useState<User[]>([])
   const [stores, setStores] = useState<Store[]>([])
   const [products, setProducts] = useState<Product[]>([])
@@ -128,34 +144,174 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [productTypes, setProductTypes] = useState<ProductType[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [media, setMedia] = useState<Media[]>([])
+  const [employees, setEmployees] = useState<User[]>([])
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([])
   const [settings, setSettings] = useState<Record<string, string>>({ site_name: 'Storify' })
   const [isDataLoading, setIsDataLoading] = useState(true)
-  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null)
+  const [dataError, setDataError] = useState<string | null>(null)
+
+  const lang = (typeof window !== 'undefined' ? localStorage.getItem('storify_lang') || 'ar' : 'ar') as keyof typeof translations
+  const t = useCallback((key: string) => (translations[lang] as any)[key] || key, [lang])
+  const [selectedStoreId, setSelectedStoreIdState] = useState<string | null>(null)
+  const [selectedStoreError, setSelectedStoreError] = useState<string | null>(null)
+  const debug = process.env.NEXT_PUBLIC_DEBUG === 'true'
+
+  const tenantOwnerId = currentUser?.parentId || currentUser?.id || null
+  const accessibleStores = useMemo(() => {
+    if (!currentUser) return []
+    if (currentUser.role === 'admin') return stores
+    return stores.filter((store) => String(store.userId) === String(tenantOwnerId))
+  }, [currentUser, stores, tenantOwnerId])
+  const selectedStore = useMemo(
+    () => accessibleStores.find((store) => store.id === selectedStoreId) || null,
+    [accessibleStores, selectedStoreId]
+  )
+
+  const persistSelectedStoreId = useCallback((id: string | null) => {
+    setSelectedStoreIdState(id)
+    if (typeof window === 'undefined') return
+    if (id) localStorage.setItem('storify_selected_store_id', id)
+    else localStorage.removeItem('storify_selected_store_id')
+  }, [])
+
+  const clearDashboardData = useCallback(() => {
+    setUsers([])
+    setStores([])
+    setProducts([])
+    setOrders([])
+    setBuyers([])
+    setSubscriptions([])
+    setUpsells([])
+    setProductTypes([])
+    setCategories([])
+    setMedia([])
+    setEmployees([])
+    setAuditLogs([])
+    persistSelectedStoreId(null)
+    setSelectedStoreError(null)
+    setDataError(null)
+  }, [persistSelectedStoreId])
+
+  useEffect(() => {
+    if (isAuthLoading) return
+
+    if (!currentUser) {
+      persistSelectedStoreId(null)
+      setSelectedStoreError(null)
+      return
+    }
+
+    if (isDataLoading) return
+
+    if (accessibleStores.length === 0) {
+      persistSelectedStoreId(null)
+      setSelectedStoreError(null)
+      return
+    }
+
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('storify_selected_store_id') : null
+    const currentIsValid = Boolean(selectedStoreId && accessibleStores.some((store) => store.id === selectedStoreId))
+
+    if (currentIsValid) {
+      if (saved !== selectedStoreId) {
+        persistSelectedStoreId(selectedStoreId)
+      }
+      setSelectedStoreError(null)
+      return
+    }
+
+    const savedStore = saved ? accessibleStores.find((store) => store.id === saved) : null
+    if (savedStore) {
+      persistSelectedStoreId(savedStore.id)
+      setSelectedStoreError(null)
+      return
+    }
+
+    if (saved || selectedStoreId) {
+      setSelectedStoreError(t('selectedStoreUnavailable'))
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('storify_selected_store_id')
+      }
+    }
+
+    const fallbackStore = accessibleStores.find((store) => store.isActive) || accessibleStores[0]
+    if (currentUser.role === 'admin') {
+      persistSelectedStoreId(null)
+      return
+    }
+
+    persistSelectedStoreId(fallbackStore.id)
+  }, [accessibleStores, currentUser, isAuthLoading, isDataLoading, persistSelectedStoreId, selectedStoreId, t])
+
+  const setSelectedStoreId = useCallback((id: string | null) => {
+    if (!currentUser) {
+      persistSelectedStoreId(null)
+      setSelectedStoreError(t('pleaseLogInToSelectStore'))
+      return
+    }
+
+    if (!id) {
+      persistSelectedStoreId(null)
+      setSelectedStoreError(null)
+      return
+    }
+
+    const store = accessibleStores.find((item) => item.id === id)
+    if (!store) {
+      persistSelectedStoreId(null)
+      setSelectedStoreError(t('storeDoesNotBelongToAccount'))
+      return
+    }
+
+    persistSelectedStoreId(store.id)
+    setSelectedStoreError(null)
+  }, [accessibleStores, currentUser, persistSelectedStoreId, t])
+
+  // Update document title dynamically
+  useEffect(() => {
+    if (typeof window !== 'undefined' && settings.site_name) {
+      const isDashboard = window.location.pathname.startsWith('/dashboard')
+      if (isDashboard) {
+        document.title = `${settings.site_name} | Dashboard`
+      }
+    }
+  }, [settings.site_name])
 
   const fetchData = useCallback(async () => {
-    console.log('[DataContext] fetchData starting...')
-    if (typeof window !== 'undefined' && (window.location.pathname.startsWith('/store/') || window.location.pathname.startsWith('/api/stores/'))) {
-      console.log('[DataContext] Storefront page detected, skipping dashboard data fetch')
+    if (isAuthLoading) {
+      return
+    }
+
+    if (debug) {
+      console.log('[DataContext] fetchData starting...')
+    }
+
+    setDataError(null)
+    setIsDataLoading(true)
+
+    if (pathname.startsWith('/store/') || pathname.startsWith('/api/stores/')) {
+      if (debug) {
+        console.log('[DataContext] Storefront page detected, skipping dashboard data fetch')
+      }
       setIsDataLoading(false)
       return
     }
+
     const token = typeof window !== 'undefined' ? localStorage.getItem('storify_access_token') : null
-    
-    // Always fetch settings first as they might be needed for public pages
+
+    if (!currentUser || !token) {
+      clearDashboardData()
+      setIsDataLoading(false)
+      return
+    }
+
     try {
-      if (!token) {
-        const settingsRes = await apiClient.get<ApiResponse<Record<string, string>>>('/api/v1/admin/settings')
-        if (settingsRes.success && settingsRes.data) {
-          setSettings(settingsRes.data)
-        }
-        setIsDataLoading(false)
-        return
+      if (debug) {
+        console.log('[DataContext] Fetching unified dashboard data...')
       }
 
-      console.log('[DataContext] Fetching unified dashboard data...')
-      const res = await apiClient.get<ApiResponse<any>>('/api/v1/dashboard/init')
-      
+      const res = await apiClient.get<ApiResponse<any>>('/api/v1/dashboard/init', { storeId: null })
+
       if (res.success && res.data) {
         const d = res.data
         if (d.stores) setStores(d.stores)
@@ -168,19 +324,48 @@ export function DataProvider({ children }: { children: ReactNode }) {
         if (d.settings) setSettings(d.settings)
         if (d.users) setUsers(d.users)
         if (d.auditLogs) setAuditLogs(d.auditLogs)
-        console.log('[DataContext] Dashboard data loaded successfully')
+        if (currentUser.role === 'employee') {
+          setEmployees([])
+        } else if (d.employees) {
+          setEmployees(d.employees)
+        } else if (currentUser.role === 'store_owner') {
+          try {
+            const employeesRes = await apiClient.get<ApiResponse<User[]>>('/api/v1/employees', { storeId: null })
+            if (employeesRes.success && employeesRes.data) {
+              setEmployees(employeesRes.data)
+            }
+          } catch (error) {
+            if (debug) {
+              console.error('[DataContext] Error loading employees:', error)
+            }
+          }
+        }
+        if (debug) {
+          console.log('[DataContext] Dashboard data loaded successfully')
+        }
+      } else {
+        setDataError(res.error || 'Failed to load dashboard data')
       }
     } catch (error) {
-      console.error('[DataContext] Fetch error:', error)
+      if (debug) {
+        console.error('[DataContext] Error in fetchData:', error)
+      }
+      setDataError(error instanceof Error ? error.message : 'Failed to load dashboard data')
     } finally {
       setIsDataLoading(false)
     }
-  }, [])
+  }, [clearDashboardData, currentUser, debug, isAuthLoading, pathname])
 
   useEffect(() => {
-    console.log('[DataContext] Initial fetch trigger')
+    if (isAuthLoading) {
+      return
+    }
+
+    if (debug) {
+      console.log('[DataContext] Initial fetch trigger')
+    }
     fetchData()
-  }, [fetchData])
+  }, [debug, fetchData, isAuthLoading])
 
   const refetchAll = () => {
     fetchData()
@@ -219,21 +404,27 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   // Store operations
   const addStore = async (storeData: Omit<Store, 'id' | 'createdAt' | 'isActive'>): Promise<Store> => {
-    const newStore: Store = { 
-      ...storeData, 
-      id: generateId('store'), 
+    const newStore: Store = {
+      ...storeData,
+      id: generateId('store'),
       createdAt: new Date().toISOString(),
       isActive: true
     }
     setStores((prev) => [...prev, newStore])
     try {
-      const res = await apiClient.post<{ data: Store }>('/api/v1/stores', storeData)
+      const res = await apiClient.post<ApiResponse<Store>>('/api/v1/stores', storeData, { storeId: null })
+      if (!res.success || !res.data) {
+        throw new Error(res.error || t('failedToCreateStore'))
+      }
+      const createdStore = res.data
+      setStores((prev) => prev.map((store) => store.id === newStore.id ? createdStore : store))
+      persistSelectedStoreId(createdStore.id)
       setTimeout(refetchAll, 300)
-      toast.success('Store created!')
-      return res.data
+      toast.success(t('storeCreatedSuccessfully'))
+      return createdStore
     } catch (err: any) {
       setStores((prev) => prev.filter(s => s.id !== newStore.id)) // Rollback
-      toast.error(err.message || 'Failed to create store')
+      toast.error(err.message || t('failedToCreateStore'))
       throw err
     }
   }
@@ -315,32 +506,67 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const addProductType = (ptData: Omit<ProductType, 'id' | 'createdAt'>): ProductType => {
     const newPT: ProductType = { ...ptData, id: generateId('pt'), createdAt: new Date().toISOString() }
     setProductTypes((prev) => [...prev, newPT])
-    apiClient.post('/api/v1/product-types', ptData).then(() => setTimeout(refetchAll, 300)).catch(console.error)
+    apiClient.post('/api/v1/product-types', ptData)
+      .then(() => {
+        toast.success('Category group added!')
+        setTimeout(refetchAll, 300)
+      })
+      .catch(err => {
+        setProductTypes((prev) => prev.filter(pt => pt.id !== newPT.id))
+        toast.error(err.message || 'Failed to add category group')
+      })
     return newPT
   }
   const updateProductType = (id: string, data: Partial<ProductType>) => {
     setProductTypes((prev) => prev.map((pt) => (pt.id === id ? { ...pt, ...data } : pt)))
-    apiClient.patch(`/api/v1/product-types/${id}`, data).then(() => setTimeout(refetchAll, 300)).catch(console.error)
+    apiClient.patch(`/api/v1/product-types/${id}`, data)
+      .then(() => {
+        toast.success('Category group updated!')
+        setTimeout(refetchAll, 300)
+      })
+      .catch(err => toast.error(err.message || 'Failed to update category group'))
   }
   const deleteProductType = (id: string) => {
     setProductTypes((prev) => prev.filter((pt) => pt.id !== id))
-    apiClient.del(`/api/v1/product-types/${id}`).then(() => setTimeout(refetchAll, 300)).catch(console.error)
+    apiClient.del(`/api/v1/product-types/${id}`)
+      .then(() => {
+        toast.success('Category group deleted!')
+        setTimeout(refetchAll, 300)
+      })
+      .catch(err => toast.error(err.message || 'Failed to delete category group'))
   }
-
   // Category operations
   const addCategory = (catData: Omit<Category, 'id'>): Category => {
     const newCat: Category = { ...catData, id: generateId('cat') }
     setCategories((prev) => [...prev, newCat])
-    apiClient.post('/api/v1/categories', catData).then(() => setTimeout(refetchAll, 300)).catch(console.error)
+    apiClient.post('/api/v1/categories', catData)
+      .then(() => {
+        toast.success('Sub-category added!')
+        setTimeout(refetchAll, 300)
+      })
+      .catch(err => {
+        setCategories((prev) => prev.filter(c => c.id !== newCat.id))
+        toast.error(err.message || 'Failed to add sub-category')
+      })
     return newCat
   }
   const updateCategory = (id: string, data: Partial<Category>) => {
     setCategories((prev) => prev.map((c) => (c.id === id ? { ...c, ...data } : c)))
-    apiClient.patch(`/api/v1/categories/${id}`, data).then(() => setTimeout(refetchAll, 300)).catch(console.error)
+    apiClient.patch(`/api/v1/categories/${id}`, data)
+      .then(() => {
+        toast.success('Sub-category updated!')
+        setTimeout(refetchAll, 300)
+      })
+      .catch(err => toast.error(err.message || 'Failed to update sub-category'))
   }
   const deleteCategory = (id: string) => {
     setCategories((prev) => prev.filter((c) => c.id !== id))
-    apiClient.del(`/api/v1/categories/${id}`).then(() => setTimeout(refetchAll, 300)).catch(console.error)
+    apiClient.del(`/api/v1/categories/${id}`)
+      .then(() => {
+        toast.success('Sub-category deleted!')
+        setTimeout(refetchAll, 300)
+      })
+      .catch(err => toast.error(err.message || 'Failed to delete sub-category'))
   }
 
   // Order operations
@@ -364,30 +590,60 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }
   const updateOrder = (id: string, data: Partial<Order>) => {
     setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, ...data, updatedAt: new Date().toISOString() } : o)))
-    
-    // Prepare data for API (mapping frontend camelCase to backend snake_case or whatever the API expects)
-    // The new API I created expects: status, internalNotes, totalAmount, deliveryFee, buyerName, buyerPhone, governorate, district, landmark
+
+    // Sync buyer state if buyer info was included in the update
+    const buyerInfo = data as any
+    if (buyerInfo.buyerName || buyerInfo.buyerPhone || buyerInfo.governorate || buyerInfo.district) {
+      const order = orders.find(o => o.id === id)
+      if (order && order.buyerId) {
+        setBuyers(prev => prev.map(b => b.id === order.buyerId ? {
+          ...b,
+          name: buyerInfo.buyerName || b.name,
+          phone: buyerInfo.buyerPhone || b.phone,
+          governorate: buyerInfo.governorate || b.governorate,
+          district: buyerInfo.district || b.district,
+          landmark: buyerInfo.landmark || b.landmark,
+        } : b))
+      }
+    }
+
+    // Prepare data for API
     apiClient.patch(`/api/v1/orders/${id}`, {
       status: data.status,
       internalNotes: data.notes,
       totalAmount: data.totalAmount,
       deliveryFee: data.deliveryFee,
-      // Pass buyer details if they were included in the Partial<Order> (though they usually aren't, 
-      // but I'll make sure the component passes them)
-      ...(data as any).buyerName && { buyerName: (data as any).buyerName },
-      ...(data as any).buyerPhone && { buyerPhone: (data as any).buyerPhone },
-      ...(data as any).governorate && { governorate: (data as any).governorate },
-      ...(data as any).district && { district: (data as any).district },
-      ...(data as any).landmark && { landmark: (data as any).landmark },
+      buyerName: buyerInfo.buyerName,
+      buyerPhone: buyerInfo.buyerPhone,
+      governorate: buyerInfo.governorate,
+      district: buyerInfo.district,
+      landmark: buyerInfo.landmark,
     }).then(() => setTimeout(refetchAll, 300)).catch(console.error)
   }
   const updateOrderStatus = (id: string, status: OrderStatus, performedBy?: string) => {
-    updateOrder(id, { status })
-    apiClient.patch(`/api/v1/orders/${id}/status`, { status }).catch(console.error)
+    setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status, updatedAt: new Date().toISOString() } : o)))
+    apiClient.patch(`/api/v1/orders/${id}/status`, { status }).then(() => setTimeout(refetchAll, 300)).catch(console.error)
+  }
+  const sendOrderToAlWaseet = async (id: string): Promise<boolean> => {
+    try {
+      const response = await apiClient.post<ApiResponse<Order>>(`/api/v1/orders/${id}/alwaseet`, {})
+      if (response.success && response.data) {
+        setOrders(prev => prev.map(o => o.id === id ? { ...o, ...response.data } : o))
+        toast.success('Order push to Al-Waseet initiated')
+        return true
+      } else {
+        toast.error(response.error || 'Failed to send to Al-Waseet')
+        return false
+      }
+    } catch (error) {
+      console.error('Error sending to Al-Waseet:', error)
+      toast.error('Connection error')
+      return false
+    }
   }
   const deleteOrder = (id: string) => {
     setOrders((prev) => prev.filter((o) => o.id !== id))
-    apiClient.del(`/api/v1/orders/${id}`).catch(console.error)
+    apiClient.del(`/api/v1/orders/${id}`).then(() => setTimeout(refetchAll, 300)).catch(console.error)
   }
 
   // Buyer operations
@@ -416,7 +672,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }
   const updateSubscription = (id: string, data: Partial<Subscription>) => {
     setSubscriptions((prev) => prev.map((s) => (s.id === id ? { ...s, ...data } : s)))
-    
+
     // Call Admin API if updating plan, status or endDate
     apiClient.patch(`/api/v1/admin/subscriptions/${id}`, {
       planId: data.planId,
@@ -446,12 +702,25 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   // Settings operations
   const updateSettings = async (newSettings: Record<string, string>) => {
-    setSettings((prev) => ({ ...prev, ...newSettings }))
-    await apiClient.post('/api/v1/admin/settings', { settings: newSettings })
+    // Map camelCase to snake_case if necessary, or just ensure they are passed correctly
+    const mapped: Record<string, string> = {}
+    for (const [key, value] of Object.entries(newSettings)) {
+      const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`)
+      mapped[snakeKey] = value
+    }
+
+    setSettings((prev) => ({ ...prev, ...mapped }))
+    await apiClient.post('/api/v1/admin/settings', { settings: mapped })
   }
 
   // Helpers
-  const getStoresByUserId = (userId: string) => stores.filter((s) => s.userId === userId)
+  const getStoresByUserId = (userId: string) => {
+    if (currentUser?.role === 'employee' && currentUser.id === userId) {
+      return stores
+    }
+
+    return stores.filter((s) => s.userId === userId)
+  }
   const getSubscriptionByUserId = (userId: string) => subscriptions.find((s) => s.userId === userId)
   const getProductsByStoreId = (storeId: string) => products.filter((p) => p.storeId === storeId)
   const getOrdersByStoreId = (storeId: string) => orders.filter((o) => o.storeId === storeId)
@@ -460,16 +729,62 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const getCategoriesByProductType = (productTypeId: string) => categories.filter((c) => c.productTypeId === productTypeId)
   const getMediaByProduct = (productId: string) => media.filter((m) => m.productId === productId)
 
+  const addEmployee = async (employeeData: any) => {
+    try {
+      const res = await apiClient.post<ApiResponse<User>>('/api/v1/employees', employeeData)
+      if (res.success && res.data) {
+        setEmployees(prev => [res.data!, ...prev])
+        toast.success(t('employeeCreated'))
+        return true
+      }
+      return false
+    } catch (e) {
+      toast.error(t('error'))
+      return false
+    }
+  }
+
+  const updateEmployee = async (id: string, data: any) => {
+    try {
+      const res = await apiClient.patch<ApiResponse<User>>(`/api/v1/employees/${id}`, data)
+      if (res.success && res.data) {
+        setEmployees(prev => prev.map(e => e.id === id ? res.data! : e))
+        toast.success(t('employeeUpdated'))
+      }
+    } catch (e) {
+      toast.error(t('error'))
+    }
+  }
+
+  const deleteEmployee = async (id: string) => {
+    try {
+      const res = await apiClient.del<ApiResponse<void>>(`/api/v1/employees/${id}`)
+      if (res.success) {
+        setEmployees(prev => prev.filter(e => e.id !== id))
+        toast.success(t('employeeDeleted'))
+      }
+    } catch (error) {
+      const debug = process.env.NEXT_PUBLIC_DEBUG === 'true'
+      if (debug) {
+        console.error('[DataContext] Error in fetchData:', error)
+      }
+      setIsDataLoading(false)
+    } finally {
+      setIsDataLoading(false)
+    }
+  }
+
   return (
     <DataContext.Provider
       value={{
         users, stores, products, orders, buyers, subscriptions, upsells,
-        productTypes, categories, media, auditLogs, settings, isDataLoading,
+        productTypes, categories, media, employees, auditLogs, settings, isDataLoading, dataError,
         addUser, updateUser, deleteUser,
         addStore, updateStore, deleteStore,
         addProduct, updateProduct, deleteProduct,
-        addOrder, updateOrder, updateOrderStatus, deleteOrder,
+        addOrder, updateOrder, updateOrderStatus, sendOrderToAlWaseet, deleteOrder,
         addBuyer, updateBuyer, blacklistBuyer, findBuyerByPhone,
+        addEmployee, updateEmployee, deleteEmployee,
         addSubscription, updateSubscription,
         addUpsell, removeUpsell,
         addProductType, updateProductType, deleteProductType,
@@ -480,7 +795,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         getSubscriptionByUserId, getUpsellsByUserId,
         getProductTypesByStoreId, getCategoriesByProductType, getMediaByProduct,
         refetchAll,
-        selectedStoreId, setSelectedStoreId
+        selectedStoreId, selectedStore, accessibleStores, selectedStoreError, setSelectedStoreId
       }}
     >
       {children}

@@ -15,19 +15,36 @@ class Media extends Model
         'store_id',
         'product_id',
         'url',
-        'type',
-        'visibility',
+        'thumbnail_url',
+        'file_path',
         'file_size',
+        'type',
         'mime_type',
+        'width',
+        'height',
+        'sort_order',
+        'is_main',
+        'storage_provider',
+        'visibility',
         'metadata',
     ];
 
     protected $casts = [
         'metadata' => 'json',
+        'is_main' => 'boolean',
+        'file_size' => 'integer',
+        'width' => 'integer',
+        'height' => 'integer',
+        'sort_order' => 'integer',
     ];
 
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function store()
+    {
+        return $this->belongsTo(Store::class);
     }
 }

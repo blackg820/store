@@ -48,19 +48,22 @@ const riskColors: Record<BuyerRisk, string> = {
   low: 'bg-success/10 text-success border-success/20',
   medium: 'bg-warning/10 text-warning border-warning/20',
   high: 'bg-destructive/10 text-destructive border-destructive/20',
+  normal: 'bg-success/10 text-success border-success/20',
+  warning: 'bg-warning/10 text-warning border-warning/20',
+  high_risk: 'bg-destructive/10 text-destructive border-destructive/20',
 }
 
 export function BuyersTable() {
   const { language } = useAuth()
   const { t } = useTranslations()
-  const { buyers, addBuyer, updateBuyer, blacklistBuyer } = useData()
-  
+  const { buyers, orders, selectedStoreId, addBuyer, updateBuyer, blacklistBuyer } = useData()
+
   const [searchQuery, setSearchQuery] = useState('')
   const [riskFilter, setRiskFilter] = useState<BuyerRisk | 'all' | 'blacklisted'>('all')
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [selectedBuyer, setSelectedBuyer] = useState<Buyer | null>(null)
-  
+
   // Form state
   const [formData, setFormData] = useState({
     phone: '',
@@ -70,19 +73,21 @@ export function BuyersTable() {
     landmark: '',
   })
 
-  let filteredBuyers = buyers
+  let filteredBuyers = selectedStoreId
+    ? buyers.filter(b => orders.some(o => o.buyerId === b.id && o.storeId === selectedStoreId))
+    : buyers
 
   if (riskFilter === 'blacklisted') {
     filteredBuyers = filteredBuyers.filter(b => b.isBlacklisted)
   } else if (riskFilter !== 'all') {
-    filteredBuyers = filteredBuyers.filter(b => b.riskScore === riskFilter && !b.isBlacklisted)
+    filteredBuyers = filteredBuyers.filter(b => b.risk === riskFilter && !b.isBlacklisted)
   }
 
   if (searchQuery) {
-    filteredBuyers = filteredBuyers.filter(b => 
+    filteredBuyers = filteredBuyers.filter(b =>
       b.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       b.phone.includes(searchQuery) ||
-      b.governorate.toLowerCase().includes(searchQuery.toLowerCase())
+      (b.governorate && b.governorate.toLowerCase().includes(searchQuery.toLowerCase()))
     )
   }
 
@@ -98,11 +103,13 @@ export function BuyersTable() {
 
   const handleAdd = () => {
     addBuyer({
+      storeId: selectedStoreId || '', // Default to global selected store
       phone: formData.phone,
       name: formData.name,
       governorate: formData.governorate,
       district: formData.district,
       landmark: formData.landmark,
+      risk: 'low',
       isBlacklisted: false,
     })
     setIsAddDialogOpen(false)
@@ -123,14 +130,14 @@ export function BuyersTable() {
     const rows = filteredBuyers.map(buyer => [
       buyer.name,
       buyer.phone,
-      buyer.governorate,
-      buyer.district,
+      buyer.governorate || '',
+      buyer.district || '',
       buyer.totalOrders,
       buyer.rejectedOrders,
-      buyer.riskScore,
+      buyer.risk,
       buyer.isBlacklisted ? 'Yes' : 'No',
     ])
-    
+
     const csv = [headers, ...rows].map(row => row.join(',')).join('\n')
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
@@ -158,7 +165,7 @@ export function BuyersTable() {
               <SelectValue placeholder={t('filter')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Buyers</SelectItem>
+              <SelectItem value="all">{t('allBuyers')}</SelectItem>
               <SelectItem value="low">{t('lowRisk')}</SelectItem>
               <SelectItem value="medium">{t('mediumRisk')}</SelectItem>
               <SelectItem value="high">{t('highRisk')}</SelectItem>
@@ -175,14 +182,14 @@ export function BuyersTable() {
             <DialogTrigger asChild>
               <Button onClick={resetForm}>
                 <Plus className="h-4 w-4 me-2" />
-                {t('add')} Buyer
+                {t('addBuyer')}
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>{t('add')} Buyer</DialogTitle>
+                <DialogTitle>{t('addBuyer')}</DialogTitle>
                 <DialogDescription>
-                  Add a new buyer to the system
+                  {t('addBuyerDesc')}
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
@@ -207,7 +214,7 @@ export function BuyersTable() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="governorate">Governorate</Label>
+                    <Label htmlFor="governorate">{t('governorate')}</Label>
                     <Input
                       id="governorate"
                       value={formData.governorate}
@@ -215,7 +222,7 @@ export function BuyersTable() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="district">District</Label>
+                    <Label htmlFor="district">{t('district')}</Label>
                     <Input
                       id="district"
                       value={formData.district}
@@ -224,7 +231,7 @@ export function BuyersTable() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="landmark">Nearest Landmark</Label>
+                  <Label htmlFor="landmark">{t('nearestLandmark')}</Label>
                   <Input
                     id="landmark"
                     value={formData.landmark}
@@ -248,12 +255,12 @@ export function BuyersTable() {
           <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
-              <TableHead>Buyer</TableHead>
+              <TableHead>{t('buyers')}</TableHead>
               <TableHead>{t('phone')}</TableHead>
-              <TableHead>Location</TableHead>
+              <TableHead>{t('location')}</TableHead>
               <TableHead className="text-center">{t('orders')}</TableHead>
-              <TableHead className="text-center">Rejected</TableHead>
-              <TableHead>Risk</TableHead>
+              <TableHead className="text-center">{t('rejected')}</TableHead>
+              <TableHead>{t('risk') || 'Risk'}</TableHead>
               <TableHead>{t('status')}</TableHead>
               <TableHead className="text-end">{t('actions')}</TableHead>
             </TableRow>
@@ -267,7 +274,7 @@ export function BuyersTable() {
               </TableRow>
             ) : (
               filteredBuyers.map((buyer) => {
-                const rejectionRate = buyer.totalOrders > 0 
+                const rejectionRate = buyer.totalOrders > 0
                   ? ((buyer.rejectedOrders / buyer.totalOrders) * 100).toFixed(0)
                   : '0'
 
@@ -275,7 +282,7 @@ export function BuyersTable() {
                   <TableRow key={buyer.id} className={cn(buyer.isBlacklisted && 'bg-destructive/5')}>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        {buyer.riskScore === 'high' && !buyer.isBlacklisted && (
+                        {buyer.risk === 'high' && !buyer.isBlacklisted && (
                           <AlertTriangle className="h-4 w-4 text-destructive" />
                         )}
                         <p className="font-medium">{buyer.name}</p>
@@ -307,8 +314,8 @@ export function BuyersTable() {
                       <span className="text-xs text-muted-foreground ms-1">({rejectionRate}%)</span>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={cn('capitalize', riskColors[buyer.riskScore])}>
-                        {t(`${buyer.riskScore}Risk` as 'lowRisk' | 'mediumRisk' | 'highRisk')}
+                      <Badge variant="outline" className={cn('capitalize', riskColors[buyer.risk || buyer.riskScore || 'low'])}>
+                        {t(`${buyer.risk || buyer.riskScore || 'low'}Risk` as 'lowRisk' | 'mediumRisk' | 'highRisk')}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -332,21 +339,21 @@ export function BuyersTable() {
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => handleView(buyer)}>
                             <Eye className="h-4 w-4 me-2" />
-                            View Details
+                            {t('viewDetails')}
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           {buyer.isBlacklisted ? (
                             <DropdownMenuItem onClick={() => handleBlacklist(buyer.id, false)}>
                               <ShieldCheck className="h-4 w-4 me-2" />
-                              Remove from Blacklist
+                              {t('removeFromBlacklist')}
                             </DropdownMenuItem>
                           ) : (
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               onClick={() => handleBlacklist(buyer.id, true)}
                               className="text-destructive"
                             >
                               <Ban className="h-4 w-4 me-2" />
-                              Add to Blacklist
+                              {t('addToBlacklist')}
                             </DropdownMenuItem>
                           )}
                         </DropdownMenuContent>
@@ -365,7 +372,7 @@ export function BuyersTable() {
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Buyer Details</DialogTitle>
+            <DialogTitle>{t('buyerDetails')}</DialogTitle>
           </DialogHeader>
           {selectedBuyer && (
             <div className="space-y-4 py-4">
@@ -379,31 +386,31 @@ export function BuyersTable() {
                   <p className="font-mono">{selectedBuyer.phone}</p>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-muted-foreground">Governorate</Label>
+                  <Label className="text-muted-foreground">{t('governorate')}</Label>
                   <p>{selectedBuyer.governorate}</p>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-muted-foreground">District</Label>
+                  <Label className="text-muted-foreground">{t('district')}</Label>
                   <p>{selectedBuyer.district}</p>
                 </div>
                 <div className="space-y-2 sm:col-span-2">
-                  <Label className="text-muted-foreground">Nearest Landmark</Label>
+                  <Label className="text-muted-foreground">{t('nearestLandmark')}</Label>
                   <p>{selectedBuyer.landmark}</p>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-muted-foreground">Total Orders</Label>
+                  <Label className="text-muted-foreground">{t('totalOrders')}</Label>
                   <p className="font-bold">{selectedBuyer.totalOrders}</p>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-muted-foreground">Rejected Orders</Label>
+                  <Label className="text-muted-foreground">{t('rejected')}</Label>
                   <p className={cn('font-bold', selectedBuyer.rejectedOrders > 0 && 'text-destructive')}>
                     {selectedBuyer.rejectedOrders}
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-muted-foreground">Risk Score</Label>
-                  <Badge variant="outline" className={cn('capitalize', riskColors[selectedBuyer.riskScore])}>
-                    {selectedBuyer.riskScore}
+                  <Label className="text-muted-foreground">{t('risk') || 'Risk'}</Label>
+                  <Badge variant="outline" className={cn('capitalize', riskColors[selectedBuyer.risk || selectedBuyer.riskScore || 'low'])}>
+                    {t(`${selectedBuyer.risk || selectedBuyer.riskScore || 'low'}Risk` as any)}
                   </Badge>
                 </div>
                 <div className="space-y-2">

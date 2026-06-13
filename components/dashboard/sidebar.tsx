@@ -24,10 +24,11 @@ import {
   BarChart3,
   Percent,
   Key,
-  Menu,
   Megaphone,
+  Bell,
   X,
   MessageCircle,
+  Activity,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useState, useEffect } from 'react'
@@ -49,22 +50,48 @@ interface NavItem {
   label: string // Translation key
   icon: React.ElementType
   adminOnly?: boolean
+  plan?: number
 }
 
-const navItems: NavItem[] = [
-  { href: '/dashboard', label: 'dashboard', icon: LayoutDashboard },
-  { href: '/dashboard/stores', label: 'stores', icon: Store },
-  { href: '/dashboard/products', label: 'products', icon: Package },
-  { href: '/dashboard/product-types', label: 'productTypes', icon: Layers },
-  { href: '/dashboard/orders', label: 'orders', icon: ShoppingCart },
-  { href: '/dashboard/buyers', label: 'buyers', icon: Users },
-  { href: '/dashboard/discounts', label: 'discounts', icon: Percent },
-  { href: '/dashboard/analytics', label: 'analytics', icon: BarChart3 },
-  { href: '/dashboard/broadcast', label: 'broadcast', icon: Megaphone, adminOnly: true },
-  { href: '/dashboard/users', label: 'users', icon: UserCircle, adminOnly: true },
-  { href: '/dashboard/subscriptions', label: 'subscriptions', icon: CreditCard, adminOnly: true },
-  { href: '/dashboard/audit-logs', label: 'auditLogs', icon: FileText, adminOnly: true },
-  { href: '/dashboard/settings', label: 'settings', icon: Settings },
+interface NavGroup {
+  label: string
+  items: NavItem[]
+}
+
+const navGroups: NavGroup[] = [
+  {
+    label: 'general',
+    items: [
+      { href: '/dashboard', label: 'dashboard', icon: LayoutDashboard },
+      { href: '/dashboard/analytics', label: 'analytics', icon: BarChart3 },
+    ]
+  },
+  {
+    label: 'management',
+    items: [
+      { href: '/dashboard/stores', label: 'stores', icon: Store },
+      { href: '/dashboard/products', label: 'products', icon: Package },
+      { href: '/dashboard/product-types', label: 'productSections' as any, icon: Layers },
+      { href: '/dashboard/orders', label: 'orders', icon: ShoppingCart },
+      { href: '/dashboard/buyers', label: 'buyers', icon: Users },
+      { href: '/dashboard/discounts', label: 'discounts', icon: Percent },
+      { href: '/dashboard/customer-notifications', label: 'notifications', icon: Bell },
+    ]
+  },
+  {
+    label: 'platform',
+    items: [
+      { href: '/dashboard/broadcast', label: 'broadcast', icon: Megaphone, adminOnly: true },
+      { href: '/dashboard/ops', label: 'ops' as any, icon: Activity, adminOnly: true },
+      { href: '/dashboard/users', label: 'users', icon: UserCircle, adminOnly: true },
+      { href: '/dashboard/subscriptions', label: 'subscriptions', icon: CreditCard, adminOnly: true },
+      { href: '/dashboard/audit-logs', label: 'auditLogs', icon: FileText, adminOnly: true },
+      { href: '/dashboard/api-keys', label: 'apiKeys' as any, icon: Key, adminOnly: true },
+      { href: '/dashboard/employees', label: 'employees', icon: Users, plan: 3 },
+      { href: '/dashboard/billing', label: 'billing' as any, icon: CreditCard },
+      { href: '/dashboard/settings', label: 'settings', icon: Settings },
+    ]
+  }
 ]
 
 import { useDashboard } from '@/lib/dashboard-context'
@@ -74,12 +101,27 @@ export function DashboardSidebar() {
   const { user, logout, language, setLanguage, direction } = useAuth()
   const { settings } = useData()
   const { t } = useTranslations()
-  const { 
-    isMobileMenuOpen: mobileOpen, 
+  const {
+    isMobileMenuOpen: mobileOpen,
     setIsMobileMenuOpen: setMobileOpen,
     isSidebarCollapsed: collapsed,
     setIsSidebarCollapsed: setCollapsed
   } = useDashboard()
+  const planLevels: Record<string, number> = {
+    starter: 1,
+    pro: 2,
+    business: 3,
+    enterprise: 4,
+    custom: 4,
+    unlimited: 4,
+  }
+  const userPlan = String(user?.subscription_plan ?? 'starter')
+  const userLevel = planLevels[userPlan] || 1
+  const workspaceLabel = user?.role === 'admin'
+    ? 'Platform'
+    : user?.role === 'employee'
+      ? 'Catalog access'
+      : 'Store owner'
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -95,10 +137,26 @@ export function DashboardSidebar() {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  const filteredNavItems = navItems.filter(item => {
-    if (item.adminOnly && user?.role !== 'admin') return false
-    return true
-  })
+  const filteredGroups = navGroups.map(group => ({
+    ...group,
+    items: group.items.filter(item => {
+      if (item.adminOnly && user?.role !== 'admin') return false
+
+      if (item.plan) {
+        if (item.href === '/dashboard/employees' && user?.role !== 'store_owner') return false
+
+        if (userLevel < item.plan) return false
+        if (user?.role === 'employee') return false // Employees can't manage other employees
+      }
+
+      if (user?.role === 'employee') {
+        const allowedPaths = ['/dashboard/products', '/dashboard/product-types']
+        if (!allowedPaths.includes(item.href)) return false
+      }
+
+      return true
+    })
+  })).filter(group => group.items.length > 0)
 
 
 
@@ -106,22 +164,22 @@ export function DashboardSidebar() {
 
   const sidebarContent = (
     <>
-      <div className="flex items-center justify-between p-4 border-b border-sidebar-border">
-        {!collapsed && (
-          <Link href="/dashboard" className="flex items-center gap-3 group/logo">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center overflow-hidden shadow-lg shadow-primary/20 transition-transform group-hover/logo:scale-110">
-              {settings.site_logo ? (
-                <img src={settings.site_logo} alt="Logo" className="h-full w-full object-cover" />
-              ) : (
-                <Store className="h-6 w-6 text-white" />
-              )}
+      <div className="flex items-center justify-between border-b border-sidebar-border p-4">
+        <Link href="/dashboard" className={cn('flex min-w-0 items-center gap-3 group/logo', collapsed && 'justify-center')}>
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-sidebar-accent text-sidebar-foreground ring-1 ring-sidebar-border transition-colors group-hover/logo:bg-sidebar-primary group-hover/logo:text-sidebar-primary-foreground">
+            {settings.site_logo ? (
+              <img src={settings.site_logo} alt="Logo" className="h-full w-full object-cover" />
+            ) : (
+              <Store className="h-5 w-5" />
+            )}
+          </div>
+          {!collapsed && (
+            <div className="min-w-0">
+              <span className="block truncate text-lg font-semibold tracking-tight text-sidebar-foreground">{settings.site_name || 'Storify'}</span>
+              <span className="block truncate text-[11px] font-medium text-sidebar-foreground/50">{workspaceLabel}</span>
             </div>
-            <div className="flex flex-col">
-              <span className="font-black text-xl tracking-tighter bg-gradient-to-br from-white to-white/60 bg-clip-text text-transparent">{settings.site_name || 'Storify'}</span>
-              <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-primary/80">SaaS Platform</span>
-            </div>
-          </Link>
-        )}
+          )}
+        </Link>
         {/* Desktop collapse button */}
         <Button
           variant="ghost"
@@ -146,48 +204,67 @@ export function DashboardSidebar() {
         </Button>
       </div>
 
-      <nav className="flex-1 py-4 overflow-y-auto">
-        <ul className="space-y-1 px-2">
-          {filteredNavItems.map((item) => {
-            const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href + '/'))
-            return (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className={cn(
-                    'flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 nav-item-glow',
-                    isActive
-                      ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-[1.02]'
-                      : 'text-sidebar-foreground/90 hover:bg-white/5 hover:text-sidebar-foreground'
-                  )}
-                >
-                  <item.icon className={cn("h-5 w-5 shrink-0 transition-transform duration-300", isActive && "scale-110")} />
-                  {!collapsed && <span className="font-medium tracking-wide">{t(item.label as any)}</span>}
-                </Link>
-              </li>
-            )
-          })}
-          
+      <nav className="flex-1 overflow-y-auto py-5 custom-scrollbar">
+        {filteredGroups.map((group, groupIdx) => (
+          <div key={group.label} className={cn("mb-5 px-3", groupIdx > 0 && "mt-6")}>
+            {!collapsed && (
+              <h3 className="mb-2 px-3 text-[11px] font-semibold text-sidebar-foreground/45">
+                {t(group.label as any)}
+              </h3>
+            )}
+            <ul className="space-y-1">
+              {group.items.map((item) => {
+                const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href + '/'))
+                return (
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      title={collapsed ? t(item.label as any) : undefined}
+                      className={cn(
+                        'flex items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 transition-colors duration-200 group/item',
+                        collapsed && 'justify-center px-0',
+                        isActive
+                          ? 'border-sidebar-primary/30 bg-sidebar-primary text-sidebar-primary-foreground'
+                          : 'text-sidebar-foreground/70 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground'
+                      )}
+                    >
+                      <item.icon className="h-[18px] w-[18px] shrink-0" />
+                      {!collapsed && <span className="truncate text-sm font-semibold">{t(item.label as any)}</span>}
+                    </Link>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        ))}
+
+        <div className="px-4">
           {settings.saas_contact_whatsapp && (
-            <li className="mt-4 pt-4 border-t border-white/5">
-              <a 
-                href={`https://wa.me/${settings.saas_contact_whatsapp.replace(/\D/g, '')}`} 
-                target="_blank" 
+            <div className="mt-4 pt-4 border-t border-white/5">
+              <a
+                href={`https://wa.me/${settings.saas_contact_whatsapp.replace(/\D/g, '')}`}
+                target="_blank"
                 rel="noopener noreferrer"
                 className={cn(
-                  'flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group hover:bg-success/10 text-success/80 hover:text-success',
+                  'flex items-center gap-3 rounded-xl px-4 py-3 text-success/80 transition-colors duration-200 hover:bg-success/10 hover:text-success',
                   collapsed && 'justify-center px-0'
                 )}
               >
                 <MessageCircle className="h-5 w-5 shrink-0 group-hover:scale-110 transition-transform" />
-                {!collapsed && <span className="font-bold tracking-wide text-xs uppercase">{t('contactSaaS' as any) || 'SaaS Support'}</span>}
+                {!collapsed && <span className="font-bold tracking-wide text-xs uppercase">{t('contactSaaS')}</span>}
               </a>
-            </li>
+            </div>
           )}
-        </ul>
+        </div>
       </nav>
 
-      <div className="p-4 border-t border-sidebar-border space-y-2">
+      <div className="space-y-2 border-t border-sidebar-border p-4">
+        {!collapsed && user && (
+          <div className="mb-3 rounded-xl border border-sidebar-border bg-sidebar-accent/45 p-3">
+            <p className="truncate text-sm font-semibold text-sidebar-foreground">{user.name}</p>
+            <p className="truncate text-xs text-sidebar-foreground/50">{user.email}</p>
+          </div>
+        )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -224,7 +301,7 @@ export function DashboardSidebar() {
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
-        
+
         <Button
           variant="ghost"
           size={collapsed ? 'icon' : 'default'}
